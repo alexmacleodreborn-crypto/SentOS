@@ -37,13 +37,6 @@ st.markdown("""
         overflow-y: scroll;
         border: 1px solid #444;
     }
-    .node-card {
-        background-color: #1c2128;
-        padding: 10px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        border-left: 5px solid #58a6ff;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -73,16 +66,13 @@ if 'dmn_logs' not in st.session_state:
     st.session_state.dmn_logs = []
 
 # --- CORE LOGIC FUNCTIONS ---
-
 def calculate_resistance(intensity, shared_traits_count):
-    # Resistance = k / (Intensity * Shared_Traits)
     k = 1.0
     if intensity == 0 or shared_traits_count == 0:
         return 1.0
     return round(k / (intensity * shared_traits_count), 4)
 
 def update_vitals():
-    # Simulate metabolic fluctuation
     st.session_state.vitals["bpm"] = random.randint(68, 85)
     st.session_state.vitals["atp"] = max(0.0, st.session_state.vitals["atp"] - 0.01)
     st.session_state.vitals["coherence"] = round(random.uniform(0.85, 1.0), 3)
@@ -93,7 +83,7 @@ def add_dmn_log(message):
     if len(st.session_state.dmn_logs) > 50:
         st.session_state.dmn_logs.pop()
 
-# --- SIDEBAR: SYSTEM CONTROL ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.title("A7DO OS Control")
     if not st.session_state.booted:
@@ -116,82 +106,52 @@ with st.sidebar:
 
 # --- MAIN INTERFACE ---
 if not st.session_state.booted:
-    st.info("Please boot the A7DO Sentience OS from the sidebar to initialize the interface.")
-    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Da_Vinci_Vitruve_Luc_Viatour.jpg/800px-Da_Vinci_Vitruve_Luc_Viatour.jpg", caption="Vitruvian Man - The Human Geometry Foundation", width=400)
+    st.info("A7DO Sentience OS is currently offline. Boot from sidebar.")
+    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Da_Vinci_Vitruve_Luc_Viatour.jpg/800px-Da_Vinci_Vitruve_Luc_Viatour.jpg", caption="Vitruvian Man - The Human Geometry Foundation", width=350)
 else:
-    # 1. Live Vitals Dashboard
-    col1, col2, col3, col4 = st.columns(4)
     update_vitals()
-    col1.metric("HEART RATE", f"{st.session_state.vitals['bpm']} BPM", delta=random.randint(-2, 2))
-    col2.metric("ATP LEVELS", f"{st.session_state.vitals['atp']:.2f}%", delta="-0.01%")
-    col3.metric("COHERENCE (C)", st.session_state.vitals['coherence'])
-    col4.metric("NODES ACTIVE", len(st.session_state.mindprint["neocortex_array"]["nodes"]))
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("HEART RATE", f"{st.session_state.vitals['bpm']} BPM")
+    col2.metric("ATP LEVELS", f"{st.session_state.vitals['atp']:.2f}%")
+    col3.metric("COHERENCE", st.session_state.vitals['coherence'])
+    col4.metric("NODES", len(st.session_state.mindprint["neocortex_array"]["nodes"]))
 
     st.divider()
-
     tab1, tab2, tab3 = st.tabs(["🧠 Mindprint Initializer", "🌌 DMN Stream", "📁 Memory Archive"])
 
     with tab1:
         st.subheader("Inject Cognitive Node")
         with st.form("node_form"):
-            t_name = st.text_input("Token Name", placeholder="e.g. JAMES_STREET")
+            t_name = st.text_input("Token Name (e.g. JAMES_STREET)")
             t_class = st.selectbox("Class", ["LOCATION", "MEMORY", "PERSON", "OBJECT", "TRAIT"])
             t_traits = st.multiselect("Traits", ["SELF", "PAIN", "JOY", "COLOUR", "SMELL", "SPATIAL", "CREATOR"])
             t_voltage = st.slider("Intensity Voltage (V)", 0.0, 10.0, 5.0)
-            t_story = st.text_area("Story Context (Narrative)")
+            t_story = st.text_area("Story Context")
             
             if st.form_submit_button("Inject Node"):
                 new_node = {
                     "token": t_name.upper() if t_name else f"NODE_{random.randint(100,999)}",
-                    "class": t_class,
-                    "traits": t_traits,
-                    "intensity_voltage": t_voltage,
-                    "story_context": t_story,
-                    "temporal_data": {"created_at": str(datetime.now()), "last_accessed": str(datetime.now())},
+                    "class": t_class, "traits": t_traits, "intensity_voltage": t_voltage,
+                    "story_context": t_story, "temporal_data": {"created_at": str(datetime.now())},
                     "synaptic_stability": 1.0
                 }
-                
-                # Check for synaptic bridges based on shared traits
-                for existing_node in st.session_state.mindprint["neocortex_array"]["nodes"]:
-                    shared = set(new_node["traits"]) & set(existing_node["traits"])
-                    if shared:
-                        resistance = calculate_resistance(new_node["intensity_voltage"], len(shared))
-                        bridge = {
-                            "source": new_node["token"],
-                            "target": existing_node["token"],
-                            "shared": list(shared),
-                            "resistance": resistance
-                        }
-                        st.session_state.mindprint["neocortex_array"]["synaptic_bridges"].append(bridge)
-                        add_dmn_log(f"SYNAPTIC_BRIDGE: Created between {new_node['token']} and {existing_node['token']} (R={resistance}Ω)")
-
                 st.session_state.mindprint["neocortex_array"]["nodes"].append(new_node)
-                add_dmn_log(f"NEURAL_INJECTION: New node '{new_node['token']}' stabilized in Layer 10.")
-                st.success(f"Node {new_node['token']} synthesized successfully.")
+                add_dmn_log(f"NEURAL_INJECTION: Node '{new_node['token']}' stabilized.")
+                st.success(f"Node {new_node['token']} synthesized.")
                 time.sleep(1)
                 st.rerun()
 
     with tab2:
         st.subheader("Subconscious Default Mode Network")
         st.markdown(f'<div class="dmn-stream">{"<br>".join(st.session_state.dmn_logs)}</div>', unsafe_allow_html=True)
-        if st.button("✨ FORCE RECONCILIATION"):
-            add_dmn_log("DMN_RECONCILE: Re-calculating global resistance matrix...")
-            time.sleep(0.5)
-            add_dmn_log("DMN_RECONCILE: Entropy trap minimized. State stable.")
 
     with tab3:
         st.subheader("Persistent Mindprint (JSON)")
         st.json(st.session_state.mindprint)
-        st.download_button(
-            label="💾 Export Mindprint.json",
-            data=json.dumps(st.session_state.mindprint, indent=4),
-            file_name=f"mindprint_{datetime.now().strftime('%Y%m%d')}.json",
-            mime="application/json"
-        )
+        st.download_button("💾 Export Mindprint.json", json.dumps(st.session_state.mindprint, indent=4), "mindprint.json")
 
-# Background processing simulation
-if st.session_state.booted:
-    time.sleep(2) # Throttle to prevent high CPU in demo
+    # Background processing simulation
+    time.sleep(1)
     st.rerun()
 
 ```
