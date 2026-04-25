@@ -1,105 +1,82 @@
 
-# A7DO Sentience OS - Master Entity Frame (Biomechanical Synthesis)
-# Logic: Hierarchical Assembly (Bones -> Joints -> Muscles)
-# Regulation: Square-Cube Growth Scaling
+# A7DO Sentience OS - Master Entity Frame (Maturation Assembler)
+# Logic: Dynamic 3D Synthesis based on Developmental Ratios.
 
-import time
 import numpy as np
 
 class A7DO_Frame:
-    """
-    The High-Resolution Body Builder.
-    Coordinates the maturation of the 206-bone chassis and 640-muscle system.
-    """
     def __init__(self, layers):
         self.layers = layers
         self.growth = layers.get("L07")
-        self.last_sync = time.time()
-        
-        # 3D Physical Manifold
-        self.assembly = {
-            "bones": {},       # 3D vertices [x, y, z]
-            "muscles": [],      # Vector pairs [[x1,y1,z1], [x2,y2,z2]]
-            "joints": {}        # Articulation points
-        }
+        self.physics_buffer = {"bones": {}, "muscles": []}
 
-    def synthesize_biological_mesh(self):
-        """
-        Builds the body in the correct order based on Growth Scale (x).
-        1. Skeletal frame placement.
-        2. Muscular stringing across anchors.
-        """
-        x = self.growth.current_scale if self.growth else 1.0
-        bone_registry = self.layers["L01"].bone_registry
+    def synthesize_3d_morphology(self):
+        """Assembles the 206-bone skeleton using developmental proportions."""
+        if not self.growth: return
         
-        # A. SKELETAL SYNTHESIS (206 Nodes)
-        self.assembly["bones"] = {}
+        stats = self.growth.get_scaling_physics()
+        x = stats["height"]
+        head_r = stats["head_ratio"]
+        limb_s = stats["limb_scalar"]
+        
+        bone_registry = self.layers["L01"].bone_registry
+        self.physics_buffer["bones"] = {}
+
         for b_id, b_data in bone_registry.items():
             b_class = b_data.get("class", "GENERAL")
-            # Determine side for bilateral symmetry
             side = 1.0 if "_R" in b_id else -1.0 if "_L" in b_id else 0.0
             
-            # Map vertical position based on Vitruvian centers
-            y_base = 0.5
-            if b_class == "SKULL": y_base = 0.9
-            elif b_class == "SPINE": y_base = np.random.uniform(0.4, 0.8) # Spine column
-            elif b_class == "UPPER": y_base = 0.7
-            elif b_class == "LOWER": y_base = 0.3
-            elif b_class == "FEET": y_base = 0.05
-            
-            # Scale coordinates by x (Linear Growth)
-            self.assembly["bones"][b_id] = [
-                side * np.random.uniform(0.05, 0.25) * x, # Width
-                y_base * x,                               # Height
-                np.random.uniform(-0.05, 0.05) * x        # Depth
-            ]
+            # --- DEVELOPMENTAL PLACEMENT ---
+            # Head (C3) stays at the top but occupies more/less % of height
+            if b_class == "SKULL":
+                y = x * (1.0 - (head_r / 2))
+                x_off = side * 0.05 * x
+            elif b_class == "SPINE":
+                y = np.random.uniform(0.4, 1.0 - head_r) * x
+                x_off = 0.0
+            elif b_class == "UPPER":
+                y = (1.0 - head_r - 0.1) * x
+                x_off = side * 0.3 * x * limb_s
+            elif b_class == "LOWER":
+                y = np.random.uniform(0.1, 0.4) * x
+                x_off = side * 0.15 * x * limb_s
+            else:
+                y = 0.5 * x
+                x_off = side * 0.1 * x
 
-        # B. MUSCULAR SYNTHESIS (640 Actuators)
-        self.assembly["muscles"] = []
-        muscle_groups = self.layers["L02"].groups
-        for group_id, m_data in muscle_groups.items():
+            self.physics_buffer["bones"][b_id] = [x_off, y, np.random.uniform(-0.02, 0.02) * x]
+
+        # --- MUSCULAR STRINGING ---
+        self.physics_buffer["muscles"] = []
+        for g_id, m_data in self.layers["L02"].groups.items():
             anchors = m_data.get("anchors", [])
             if len(anchors) >= 2:
-                p1 = self.assembly["bones"].get(anchors[0])
-                p2 = self.assembly["bones"].get(anchors[-1])
+                p1 = self.physics_buffer["bones"].get(anchors[0])
+                p2 = self.physics_buffer["bones"].get(anchors[-1])
                 if p1 and p2:
-                    self.assembly["muscles"].append({
-                        "id": group_id,
-                        "origin": p1,
-                        "insertion": p2,
-                        "tension": self.layers["L02"].activation_states[m_data["muscles"][0]]["tension"]
-                    })
+                    self.physics_buffer["muscles"].append({"p1": p1, "p2": p2})
 
     def execute_biological_heartbeat(self):
-        """
-        The Master Execution Loop. 
-        Ensures all layers are updated in the correct thermodynamic order.
-        """
-        # 1. Physical Growth (Maturation)
-        if self.growth:
-            self.growth.update_growth()
-            
-        # 2. Cognitive Calculation (k=0.05 ADHD/Autism profile)
-        # Higher resistance R from associative jumps lowers coherence C
-        res_r = self.layers["L10"].get_resistance_matrix()
-        self.layers["L00"].calculate_coherence(res_r, 0.01)
+        """The Master Growth & Cognition Pulse."""
+        if self.growth: self.growth.update_maturation()
         
-        # 3. Visceral Metabolism (Square-Cube Cost)
-        # Penalty is x^3 (mass) / x^2 (strength)
-        mass_penalty = self.growth.mass_volume if self.growth else 1.0
-        self.layers["L05"].process_cycle(cognitive_load=0.2, muscle_strain=mass_penalty)
+        # Cognitive Resistance (k=0.05)
+        r = self.layers["L10"].get_resistance_matrix()
+        self.layers["L00"].calculate_coherence(r, 0.01)
         
-        # 4. Physical 3D Assembly
-        self.synthesize_biological_mesh()
+        # Metabolic Tax (Cubic Mass)
+        stats = self.growth.get_scaling_physics()
+        self.layers["L05"].process_cycle(cognitive_load=0.2, muscle_strain=stats["mass"])
         
-        return self.get_unified_telemetry()
+        self.synthesize_3d_morphology()
+        return self.get_state()
 
-    def get_unified_telemetry(self):
-        """Standardized data packet for the Dashboard."""
+    def get_state(self):
         return {
-            "vitals": self.layers["L05"].get_vitals() if "L05" in self.layers else {"atp": 0, "bpm": 0},
-            "growth": self.growth.get_telemetry() if self.growth else {"maturity_percent": 0},
-            "physics": self.assembly,
-            "governance": self.layers["L00"].get_telemetry() if "L00" in self.layers else {"coherence_index": 0}
+            "vitals": self.layers["L05"].get_vitals(),
+            "growth": self.growth.get_scaling_physics() if self.growth else {},
+            "physics": self.physics_buffer,
+            "governance": self.layers["L00"].get_telemetry(),
+            "logs": self.growth.log_archive if self.growth else []
         }
 
