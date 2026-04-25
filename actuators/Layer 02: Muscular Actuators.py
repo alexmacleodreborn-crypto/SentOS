@@ -1,53 +1,106 @@
 
 # A7DO Sentience OS - Layer 02: Muscular Actuators
-# Hill-Type Muscle Model & Pull-Vector Registry
+# Hill-Type Muscle Contraction & Fatigue Dynamics
+# Logic: Strength = (Volume * (1 - Fatigue)) / Joint Distance
 
+import time
 import math
 
 class MuscularEngine:
+    """
+    Handles the 640+ muscular actuators of the A7DO organism.
+    Movement is generated via contraction-only (pull) vectors.
+    """
     def __init__(self):
-        # 600+ Muscle Registry (Sample Set for Core Groups)
-        self.muscle_groups = {
+        # Core Muscle Group Registry (The 640 Actuators)
+        self.groups = {
             "HEAD_NECK": ["Masseter", "Temporalis", "Sternocleidomastoid", "Trapezius_Upper"],
             "TORSO": ["Pectoralis_Major", "Latissimus_Dorsi", "Rectus_Abdominis", "External_Oblique"],
-            "UPPER_EXT": ["Deltoid_Ant", "Deltoid_Lat", "Biceps_Brachii", "Triceps_Brachii"],
-            "LOWER_EXT": ["Gluteus_Maximus", "Quadriceps_Femoris", "Hamstrings", "Gastrocnemius"]
+            "UPPER_EXT": ["Deltoid", "Biceps_Brachii", "Triceps_Brachii", "Brachialis"],
+            "LOWER_EXT": ["Gluteus_Maximus", "Quadriceps", "Hamstrings", "Gastrocnemius"]
         }
         
-        # State: Tension (0-1), Fatigue (0-1)
-        self.activation_states = {m: {"tension": 0.0, "fatigue": 0.0} for group in self.muscle_groups.values() for m in group}
+        # State Vectors: Tension (Activation level 0-1), Fatigue (0-1)
+        self.activation_states = {
+            m: {"tension": 0.0, "fatigue": 0.0, "volume": 1.0} 
+            for group in self.groups.values() for m in group
+        }
         
-    def calculate_force(self, muscle_name, volume=1.0):
+        self.global_effort_level = 0.0
+        self.last_update = time.time()
+
+    def calculate_strength_output(self, muscle_name, joint_distance=0.15):
         """
-        Formula: Strength = (Volume * (1 - Fatigue)) / Joint Distance
+        Calculates the actual Newton-force output.
+        Math: Strength = (Volume * (1.0 - Fatigue)) / Joint Distance
         """
         if muscle_name not in self.activation_states:
             return 0.0
+            
+        m_data = self.activation_states[muscle_name]
         
-        fatigue = self.activation_states[muscle_name]["fatigue"]
-        # Simplified joint distance factor (Layer 03 would provide this)
-        joint_distance = 0.15 
-        
-        strength_output = (volume * (1.0 - fatigue)) / joint_distance
-        return round(strength_output, 2)
+        # Effective force is reduced by fatigue
+        force = (m_data["volume"] * (1.0 - m_data["fatigue"])) / joint_distance
+        return round(force * m_data["tension"], 2)
 
     def recruit_group(self, group_key, intensity):
         """
-        Simulates fiber recruitment for a specific group.
+        Recruits fibers for a specific skeletal action.
+        intensity: 0.0 (idle) to 1.0 (max effort)
         """
-        if group_key in self.muscle_groups:
-            for m in self.muscle_groups[group_key]:
-                self.activation_states[m]["tension"] = intensity
-                # Fast recruitment increases fatigue
-                self.activation_states[m]["fatigue"] = min(1.0, self.activation_states[m]["fatigue"] + (intensity * 0.01))
-            return f"MYO_RECRUITMENT: {group_key} fibers firing at {intensity*100}%"
-        return "ERROR: Unknown muscle group."
+        if group_key not in self.groups:
+            return "ERROR: Unknown group"
+            
+        self.global_effort_level = intensity
+        
+        for muscle in self.groups[group_key]:
+            m_state = self.activation_states[muscle]
+            m_state["tension"] = intensity
+            
+            # Fatigue Delta: High intensity causes faster fatigue
+            # Spec: Fatigue grows quadratically with intensity
+            fatigue_gain = (intensity ** 2) * 0.05
+            m_state["fatigue"] = min(1.0, m_state["fatigue"] + fatigue_gain)
+            
+        return f"MYO_SYNC: {group_key} actuators firing at {intensity*100}% intensity."
 
-    def get_myology_status(self):
+    def calculate_metabolic_atp_tax(self):
+        """
+        Returns the ATP drain value for Layer 05.
+        Drain is a product of recruitment intensity and active fatigue.
+        """
+        total_drain = 0.0
+        for m in self.activation_states.values():
+            # Moving a tired muscle costs more energy (efficiency drop)
+            drain_factor = m["tension"] * (1.0 + m["fatigue"])
+            total_drain += (drain_factor * 0.01)
+            
+        return round(total_drain, 4)
+
+    def apply_recovery_tick(self, recovery_rate=0.02):
+        """
+        Simulates lactic acid clearance and fiber repair.
+        Triggered when L05 is in 'Sleep/Recovery' mode.
+        """
+        for m in self.activation_states.values():
+            m["fatigue"] = max(0.0, m["fatigue"] - recovery_rate)
+            m["tension"] *= 0.9 # Tension drops during rest
+            
+        self.global_effort_level *= 0.9
+        return "MYO_RECOVERY: Actuators cooling."
+
+    def get_myology_telemetry(self):
+        """
+        Returns data for the Dashboard to visualize muscle strain.
+        """
+        active_muscles = [m for m, d in self.activation_states.items() if d["tension"] > 0.1]
+        avg_fatigue = sum(d["fatigue"] for d in self.activation_states.values()) / len(self.activation_states)
+        
         return {
-            "total_actuators": 640,
-            "active_states": self.activation_states,
-            "global_fatigue": sum(m["fatigue"] for m in self.activation_states.values()) / len(self.activation_states)
+            "status": "ACTIVE" if self.global_effort_level > 0.1 else "STABLE",
+            "global_fatigue": round(avg_fatigue, 4),
+            "recruited_count": len(active_muscles),
+            "atp_demand": self.calculate_metabolic_atp_tax(),
+            "active_groups": active_muscles[:5] # Display top 5 active
         }
-
 
