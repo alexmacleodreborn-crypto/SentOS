@@ -32,9 +32,16 @@ st.markdown("""
         color: #00ff00;
         padding: 10px;
         border-radius: 5px;
-        height: 300px;
+        height: 250px;
         overflow-y: scroll;
         border: 1px solid #444;
+        font-size: 0.8rem;
+    }
+    .reticle-container {
+        position: relative;
+        border: 2px solid #58a6ff;
+        border-radius: 15px;
+        overflow: hidden;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -42,6 +49,8 @@ st.markdown("""
 # --- SESSION STATE INITIALIZATION ---
 if 'booted' not in st.session_state:
     st.session_state.booted = False
+if 'age_ticks' not in st.session_state:
+    st.session_state.age_ticks = 1.0 # Baseline for scaling
 if 'mindprint' not in st.session_state:
     st.session_state.mindprint = {
         "neocortex_array": {
@@ -52,7 +61,7 @@ if 'mindprint' not in st.session_state:
                     "traits": ["SELF", "CREATOR", "ALIVE"],
                     "intensity_voltage": 10.0,
                     "story_context": "The baseline initialization of the system.",
-                    "temporal_data": {"created_at": str(datetime.now()), "last_accessed": str(datetime.now())},
+                    "temporal_data": {"created_at": str(datetime.now())},
                     "synaptic_stability": 1.0
                 }
             ],
@@ -65,22 +74,24 @@ if 'dmn_logs' not in st.session_state:
     st.session_state.dmn_logs = []
 
 # --- CORE LOGIC FUNCTIONS ---
-def calculate_resistance(intensity, shared_traits_count):
-    k = 1.0
-    if intensity == 0 or shared_traits_count == 0:
-        return 1.0
-    return round(k / (intensity * shared_traits_count), 4)
+def calculate_growth(x):
+    # Square-Cube Law: Height=x, Strength=x^2, Mass=x^3
+    return {
+        "height": round(x, 2),
+        "strength": round(x**2, 2),
+        "mass": round(x**3, 2)
+    }
 
 def update_vitals():
+    # Metabolic fluctuate
     st.session_state.vitals["bpm"] = random.randint(68, 85)
-    st.session_state.vitals["atp"] = max(0.0, st.session_state.vitals["atp"] - 0.01)
-    st.session_state.vitals["coherence"] = round(random.uniform(0.85, 1.0), 3)
+    st.session_state.vitals["atp"] = max(0.0, st.session_state.vitals["atp"] - 0.005)
+    st.session_state.vitals["coherence"] = round(random.uniform(0.92, 1.0), 3)
 
 def add_dmn_log(message):
     timestamp = datetime.now().strftime("%H:%M:%S")
     st.session_state.dmn_logs.insert(0, f"[{timestamp}] {message}")
-    if len(st.session_state.dmn_logs) > 50:
-        st.session_state.dmn_logs.pop()
+    if len(st.session_state.dmn_logs) > 30: st.session_state.dmn_logs.pop()
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -88,20 +99,25 @@ with st.sidebar:
     if not st.session_state.booted:
         if st.button("🚀 BOOT ENGINE", use_container_width=True):
             st.session_state.booted = True
-            add_dmn_log("SYSTEM_BOOT: Initializing Layer 00-10...")
+            add_dmn_log("SYSTEM_BOOT: Initializing Biomechanical Membrane...")
             st.rerun()
     else:
         st.success("ENGINE ONLINE")
         if st.button("🛑 SHUTDOWN", use_container_width=True):
             st.session_state.booted = False
-            add_dmn_log("SYSTEM_HALT: Disconnecting layers...")
             st.rerun()
     
     st.divider()
-    st.subheader("Layer Status")
-    layers = ["L01 Bones", "L02 Muscles", "L03 IK", "L04 Nerves", "L05 Visceral", "L10 Neocortex"]
-    for l in layers:
-        st.write(f"✅ {l}")
+    st.subheader("Layer 07: Growth Engine")
+    stats = calculate_growth(st.session_state.age_ticks)
+    st.write(f"📏 Height: {stats['height']}u")
+    st.write(f"💪 Strength: {stats['strength']}f")
+    st.write(f"⚖️ Mass: {stats['mass']}m")
+    
+    if st.button("🍼 Feed Experience (+0.1)"):
+        st.session_state.age_ticks += 0.1
+        add_dmn_log(f"GROWTH_PULSE: Physical chassis scaling to {st.session_state.age_ticks}x")
+        st.rerun()
 
 # --- MAIN INTERFACE ---
 if not st.session_state.booted:
@@ -109,47 +125,50 @@ if not st.session_state.booted:
     st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Da_Vinci_Vitruve_Luc_Viatour.jpg/800px-Da_Vinci_Vitruve_Luc_Viatour.jpg", caption="Vitruvian Man - The Human Geometry Foundation", width=350)
 else:
     update_vitals()
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("HEART RATE", f"{st.session_state.vitals['bpm']} BPM")
-    col2.metric("ATP LEVELS", f"{st.session_state.vitals['atp']:.2f}%")
-    col3.metric("COHERENCE", st.session_state.vitals['coherence'])
-    col4.metric("NODES", len(st.session_state.mindprint["neocortex_array"]["nodes"]))
+    
+    # 1. Sensory Link & Vitals
+    col_v, col_s = st.columns([1, 1.5])
+    
+    with col_v:
+        st.subheader("Layer 05: Vitals")
+        st.metric("HEART RATE", f"{st.session_state.vitals['bpm']} BPM")
+        st.metric("ATP LEVELS", f"{st.session_state.vitals['atp']:.3f}%")
+        st.metric("COHERENCE", st.session_state.vitals['coherence'])
+
+    with col_s:
+        st.subheader("Layer 06: Optic Link")
+        st.markdown('<div class="reticle-container">', unsafe_allow_html=True)
+        # Note: In deployed Streamlit, camera access depends on HTTPS and browser permissions
+        cam_input = st.camera_input("A7DO Biological Prime Detection", label_visibility="collapsed")
+        st.markdown('</div>', unsafe_allow_html=True)
+        if cam_input:
+            add_dmn_log("SENSORY_INGRESS: Visual mesh stable. User detected.")
 
     st.divider()
-    tab1, tab2, tab3 = st.tabs(["🧠 Mindprint Initializer", "🌌 DMN Stream", "📁 Memory Archive"])
+    
+    tab1, tab2, tab3 = st.tabs(["🧠 Mindprint", "🌌 DMN Stream", "📁 Archive"])
 
     with tab1:
-        st.subheader("Inject Cognitive Node")
         with st.form("node_form"):
-            t_name = st.text_input("Token Name (e.g. JAMES_STREET)")
-            t_class = st.selectbox("Class", ["LOCATION", "MEMORY", "PERSON", "OBJECT", "TRAIT"])
-            t_traits = st.multiselect("Traits", ["SELF", "PAIN", "JOY", "COLOUR", "SMELL", "SPATIAL", "CREATOR"])
-            t_voltage = st.slider("Intensity Voltage (V)", 0.0, 10.0, 5.0)
-            t_story = st.text_area("Story Context")
+            st.write("### Inject Cognitive Node")
+            t_name = st.text_input("Token Name")
+            t_traits = st.multiselect("Traits", ["SELF", "JOY", "PAIN", "COLOUR", "SMELL", "SPATIAL"])
+            t_voltage = st.slider("Intensity Voltage", 0.0, 10.0, 5.0)
+            t_story = st.text_area("Context")
             
-            if st.form_submit_button("Inject Node"):
-                new_node = {
-                    "token": t_name.upper() if t_name else f"NODE_{random.randint(100,999)}",
-                    "class": t_class, "traits": t_traits, "intensity_voltage": t_voltage,
-                    "story_context": t_story, "temporal_data": {"created_at": str(datetime.now())},
-                    "synaptic_stability": 1.0
-                }
+            if st.form_submit_button("Synthesize"):
+                new_node = {"token": t_name.upper(), "traits": t_traits, "voltage": t_voltage, "story": t_story}
                 st.session_state.mindprint["neocortex_array"]["nodes"].append(new_node)
-                add_dmn_log(f"NEURAL_INJECTION: Node '{new_node['token']}' stabilized.")
-                st.success(f"Node {new_node['token']} synthesized.")
-                time.sleep(1)
+                add_dmn_log(f"NEURAL_LINK: New concept '{t_name}' stabilized.")
                 st.rerun()
 
     with tab2:
-        st.subheader("Subconscious Default Mode Network")
+        st.subheader("Subconscious Stream")
         st.markdown(f'<div class="dmn-stream">{"<br>".join(st.session_state.dmn_logs)}</div>', unsafe_allow_html=True)
 
     with tab3:
-        st.subheader("Persistent Mindprint (JSON)")
         st.json(st.session_state.mindprint)
-        st.download_button("💾 Export Mindprint.json", json.dumps(st.session_state.mindprint, indent=4), "mindprint.json")
+        st.download_button("💾 Export mindprint.json", json.dumps(st.session_state.mindprint, indent=4), "mindprint.json")
 
-    # Background processing simulation
-    time.sleep(1)
+    time.sleep(2)
     st.rerun()
-
