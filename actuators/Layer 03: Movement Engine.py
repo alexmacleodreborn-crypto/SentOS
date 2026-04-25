@@ -41,12 +41,10 @@ class MovementEngine:
         Jacobian IK Solver:
         Calculates the necessary joint deltas to move a specific Bone ID to target_xyz.
         """
-        # Logic: Find path in skeletal tree from root to target_bone_id
         # Simulation of convergence
         dist = np.linalg.norm(target_xyz)
         
         # Calculate Curvature Pressure (Psi) for L00
-        # If the reach is impossible, prediction error spikes
         max_reach = 0.8 * self.scale_x
         prediction_error = max(0, dist - max_reach)
         
@@ -66,7 +64,6 @@ class MovementEngine:
         Torque = Force * Distance.
         Force is influenced by Mass Scalar (x^3).
         """
-        # Movement becomes exponentially harder as scale x increases
         base_force = 9.81 * self.mass_scalar
         return round(base_force * 0.5, 2) # Nm
 
@@ -75,25 +72,29 @@ class MovementEngine:
         Vestibular Loop: Adjusts CoM to stay within the Base of Support.
         Triggered every 20ms in a live environment.
         """
-        # Jitter simulation
-        self.center_of_mass["x"] += math.sin(time.time() * 2) * 0.005
+        jitter = math.sin(time.time() * 2) * 0.005
+        self.center_of_mass["x"] += jitter
         
-        # Stability decays if CoM x shifts too far from center (0.0)
-        self.stability_index = max(0.0, 1.0 - abs(self.center_of_mass["x"]) * 5)
+        # Stability calculation
+        current_stability = max(0.0, 1.0 - abs(self.center_of_mass["x"]) * 5)
+        self.stability_index = current_stability
         
         return {
             "com": self.center_of_mass,
-            "stability": round(self.stability_index, 3),
-            "state": "STABLE" if self.stability_index > 0.8 else "STUMBLING"
+            "stability": round(current_stability, 3),
+            "state": "STABLE" if current_stability > 0.8 else "STUMBLING"
         }
 
     def get_kinematic_telemetry(self):
-        """High-resolution data export for the Executive Dashboard."""
+        """
+        High-resolution data export for the Executive Dashboard.
+        FIXED: Using 'stability_index' key to resolve dashboard KeyError.
+        """
         bal = self.update_balance()
         return {
             "joint_angles": self.joint_matrix,
             "center_of_mass": bal["com"],
-            "stability": bal["stability"],
+            "stability_index": bal["stability"], 
             "balance_state": bal["state"],
             "mass_load_nm": self.calculate_static_torque(),
             "physics_scale": f"{self.scale_x}x"
