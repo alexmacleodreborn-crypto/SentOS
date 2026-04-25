@@ -4,3 +4,4 @@ streamlit-mic-recorder
 numpy
 datetime
 plotly
+pandas
