@@ -1,96 +1,107 @@
 
-# A7DO Sentience OS - Layer 03: Movement Engine
-# Jacobian-based Inverse Kinematics & Equilibrium
-# Logic: Calculating joint torques to maintain balance against gravity.
+# A7DO Sentience OS - Layer 02: Muscular Actuators (High-Resolution)
+# Hill-Type Muscle Contraction & 640+ Actuator Registry
+# Logic: Strength = (Volume * (1.0 - Fatigue)) / Joint Distance
 
-import numpy as np
-import math
 import time
+import random
 
-class MovementEngine:
+class MuscularEngine:
     """
-    The Kinematic system of the A7DO organism.
-    Translates coordinate targets into specific joint angles.
+    The High-Resolution Actuator Layer.
+    Translates cognitive intent into contraction vectors across the 206-bone chassis.
     """
-    def __init__(self, scale_x=1.0):
-        # Dimensional regulation from L01 work:
-        self.reach_scalar = scale_x
-        self.mass_scalar = scale_x ** 3
-        
-        # Proprioception: Internal sense of body position
-        # Degrees of Freedom (DoF) mapping to Layer 01 chassis
-        self.joint_registry = {
-            "NECK": {"pitch": 0.0, "yaw": 0.0, "limit": 45},
-            "SHOULDER_L": {"pitch": 0.0, "roll": 0.0, "limit": 180},
-            "ELBOW_L": {"flex": 0.0, "limit": 145},
-            "SHOULDER_R": {"pitch": 0.0, "roll": 0.0, "limit": 180},
-            "ELBOW_R": {"flex": 0.0, "limit": 145},
-            "HIP_L": {"pitch": 0.0, "roll": 0.0, "limit": 120},
-            "KNEE_L": {"flex": 0.0, "limit": 135}
+    def __init__(self):
+        # 1. THE 640+ ACTUATOR REGISTRY (Categorized for Physics Sandbox)
+        self.total_actuators = 640
+        self.groups = {
+            "HEAD_NECK": ["Masseter_L", "Masseter_R", "Temporalis_L", "Temporalis_R", "Sternocleidomastoid", "Platysma"],
+            "TRUNK": ["Pectoralis_Major_L", "Pectoralis_Major_R", "Rectus_Abdominis", "Latissimus_Dorsi", "Trapezius"],
+            "UPPER_LIMB_L": ["Deltoid_L", "Biceps_Brachii_L", "Triceps_Brachii_L", "Brachialis_L", "Flexor_Carpi_L"],
+            "UPPER_LIMB_R": ["Deltoid_R", "Biceps_Brachii_R", "Triceps_Brachii_R", "Brachialis_R", "Flexor_Carpi_R"],
+            "LOWER_LIMB_L": ["Gluteus_Maximus_L", "Quadriceps_Femoris_L", "Hamstrings_L", "Gastrocnemius_L", "Tibialis_Ant_L"],
+            "LOWER_LIMB_R": ["Gluteus_Maximus_R", "Quadriceps_Femoris_R", "Hamstrings_R", "Gastrocnemius_R", "Tibialis_Ant_R"]
         }
         
-        self.center_of_mass = [0.0, 0.0, 0.0]
-        self.is_balancing = True
-        self.velocity_m_s = 0.0
-
-    def calculate_ik_reach(self, target_xyz):
-        """
-        Jacobian IK Solver:
-        Calculates the joint rotations required to touch target_xyz.
-        Reach range is limited by physical scale x.
-        """
-        # Calculate distance to target
-        dist = np.linalg.norm(target_xyz)
-        max_reach = 0.8 * self.reach_scalar
+        # 2. STATE VECTORS (Tension, Fatigue, Volume)
+        # Every actuator is tracked individually
+        self.activation_states = {}
+        for group_name, muscles in self.groups.items():
+            for muscle in muscles:
+                self.activation_states[muscle] = {
+                    "tension": 0.0,      # Current recruitment (0.0 to 1.0)
+                    "fatigue": 0.0,      # Lactic acid build-up (0.0 to 1.0)
+                    "volume": 1.0,       # Physical size/Hypertrophy
+                    "attachment": group_name
+                }
         
-        if dist > max_reach:
-            return "IK_FAILURE: Target outside physical manifold reach."
-        
-        # Simulate Jacobian convergence loop
-        # In a high-fidelity sim, this updates the joint_registry angles
-        for joint in self.joint_registry:
-            # Subtle movement toward target
-            if "pitch" in self.joint_registry[joint]:
-                self.joint_registry[joint]["pitch"] += 0.02
-                
-        self.velocity_m_s = round(dist * 0.1, 2)
-        return "IK_SUCCESS: Reach stabilized."
+        self.global_atp_drain = 0.0
+        self.last_sync = time.time()
 
-    def calculate_kinematic_torque(self, effort_level):
+    def calculate_force(self, muscle_name, joint_distance=0.15):
         """
-        Determines the torque required to maintain the pose.
-        Formula: Torque = Force * (Distance^2) * Mass_Scalar
+        Hill-Type Physics: Strength = (Volume * (1.0 - Fatigue)) / Joint Distance
+        This force is what moves the individual bones in Layer 03.
         """
-        # Mass scales cubically per the user's Square-Cube law
-        torque_required = (effort_level * self.mass_scalar)
-        return round(torque_required, 4)
-
-    def maintain_equilibrium(self):
-        """
-        Vestibular Reflex: Micro-adjustments to prevent falling.
-        Checks Center of Mass (CoM) against Base of Support (BoS).
-        """
-        # Simulation of balancing logic
-        jitter = math.sin(time.time()) * 0.01
-        self.center_of_mass[0] += jitter
+        if muscle_name not in self.activation_states:
+            return 0.0
+            
+        m = self.activation_states[muscle_name]
         
-        stability_index = 1.0 - abs(self.center_of_mass[0])
+        # Force is scaled by current tension and reduced by fatigue
+        force_output = (m["volume"] * (1.0 - m["fatigue"])) / max(0.01, joint_distance)
+        return round(force_output * m["tension"], 2)
+
+    def recruit_group(self, group_key, intensity):
+        """
+        Recruits fibers across a skeletal segment. 
+        Higher intensity = Faster movement but higher ATP drain and Fatigue.
+        """
+        if group_key not in self.groups:
+            return f"ACTUATOR_ERROR: Group {group_key} not found."
+            
+        for muscle in self.groups[group_key]:
+            m = self.activation_states[muscle]
+            m["tension"] = intensity
+            
+            # Fatigue growth: Quadratic scaling (x^2)
+            # Sudden high-intensity "Swerves" cause massive fatigue
+            fatigue_gain = (intensity ** 2) * 0.05
+            m["fatigue"] = min(1.0, m["fatigue"] + fatigue_gain)
+            
+        return f"MYO_SYNC: {group_key} recruitment at {intensity*100}%"
+
+    def calculate_metabolic_tax(self):
+        """
+        Returns the energy cost for Layer 05.
+        Tired muscles cost more ATP to recruit (efficiency drop).
+        """
+        total_tax = 0.0
+        for m in self.activation_states.values():
+            # Formula: drain = tension * (1 + fatigue)
+            drain = m["tension"] * (1.0 + m["fatigue"])
+            total_tax += (drain * 0.002)
+            
+        self.global_atp_drain = round(total_tax, 4)
+        return self.global_atp_drain
+
+    def recover(self, rate=0.01):
+        """Simulates aerobic recovery during Sleep Cycles."""
+        for m in self.activation_states.values():
+            m["fatigue"] = max(0.0, m["fatigue"] - rate)
+            m["tension"] *= 0.8 # Muscle tone relaxes
+        return "RECOVERY_COMPLETE"
+
+    def get_myology_telemetry(self):
+        """State report for the Executive Dashboard."""
+        active = [k for k, v in self.activation_states.items() if v["tension"] > 0.1]
+        avg_fatigue = sum(v["fatigue"] for v in self.activation_states.values()) / self.total_actuators
+        
         return {
-            "status": "BALANCED" if stability_index > 0.85 else "STUMBLING",
-            "stability": round(stability_index, 3)
-        }
-
-    def get_proprioception_telemetry(self):
-        """
-        Returns the data for the Executive Dashboard.
-        """
-        bal = self.maintain_equilibrium()
-        return {
-            "joint_matrix": self.joint_registry,
-            "center_of_mass": self.center_of_mass,
-            "motion_velocity": self.velocity_m_s,
-            "balance_status": bal["status"],
-            "stability_index": bal["stability"],
-            "torque_load": self.calculate_kinematic_torque(self.velocity_m_s)
+            "actuators_mapped": self.total_actuators,
+            "avg_fatigue": round(avg_fatigue, 4),
+            "atp_demand": self.global_atp_drain,
+            "active_fibers": active[:10], # Show top 10 active
+            "status": "NOMINAL" if avg_fatigue < 0.5 else "EXHAUSTED"
         }
 
