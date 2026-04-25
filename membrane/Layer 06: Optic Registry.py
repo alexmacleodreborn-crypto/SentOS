@@ -1,84 +1,77 @@
 
 # A7DO Sentience OS - Layer 06: Optic Registry
-# Perceptual Ingress & Geometric Symbolization
-# Logic: Provides Trap Strength (Z) to the Layer 00 Governor.
+# Active Perceptual Ingress & Spatial Fixation
+# Logic: Tracks 3D geometries and exports HUD coordinates for the user.
 
 import random
 import time
 
 class OpticRegistry:
     """
-    Handles the sensory manifold. 
-    Translates unidentified 3D geometries into high-entropy noise (Z).
+    Handles the visual manifold. 
+    Now includes Fixation logic so the user can see what A7DO sees.
     """
     def __init__(self):
         self.active_ingress = []
         self.discovery_needed = False
         self.target_mesh = None
+        self.fixation_data = {"x": 0, "y": 0, "w": 0, "h": 0} # HUD Coordinates
         
-        # Internal state for Sandy's Law feedback
+        # Sandy's Law Parameters
         self.trap_strength_z = 0.05 
-        self.last_scan_time = time.time()
         
-        # Spatial orientation metrics (Depth/Disparity)
-        self.disparity_scalar = 1.0
-
     def scan_environment(self, neocortex_nodes):
         """
-        Simulates the detection of geometric meshes in the 16x16 manifold.
-        Checks detected Mesh IDs against Symbol tokens in Layer 10.
+        Simulates the detection of geometries.
+        If an object is unknown, A7DO 'Fixates' on it by locking coordinates.
         """
-        # Simulated ingress stream: Known anchors + Random Unidentified Mesh
-        # MESH_USER and MESH_CHASSIS are hardcoded as known for survival.
-        detected_meshes = ["MESH_USER", "MESH_CHASSIS", f"MESH_UNK_{random.randint(10, 99)}"]
+        # Simulated objects in the room with random positions for the HUD
+        room_objects = [
+            {"id": "MESH_USER", "x": 30, "y": 20, "w": 40, "h": 60},
+            {"id": "MESH_CHASSIS", "x": 10, "y": 70, "w": 20, "h": 20},
+            {"id": f"MESH_UNK_{random.randint(10, 99)}", "x": random.randint(50, 70), "y": random.randint(10, 40), "w": 15, "h": 15}
+        ]
         
         self.active_ingress = []
-        unknown_count = 0
+        unknown_found = False
         
-        for mesh_id in detected_meshes:
-            # Check if this mesh ID is symbolized in the Mindprint (L10)
-            is_known = any(node["token"] in mesh_id for node in neocortex_nodes)
+        for obj in room_objects:
+            # Cross-reference with Layer 10 Symbols
+            is_known = any(node["token"] in obj["id"] for node in neocortex_nodes)
             
-            if not is_known:
-                unknown_count += 1
+            if not is_known and not unknown_found:
+                # A7DO "Fixates" on the FIRST unknown object he sees
+                unknown_found = True
                 self.discovery_needed = True
-                self.target_mesh = mesh_id
-                
+                self.target_mesh = obj["id"]
+                self.fixation_data = {
+                    "x": obj["x"], "y": obj["y"], 
+                    "w": obj["w"], "h": obj["h"]
+                }
+            
             self.active_ingress.append({
-                "id": mesh_id,
-                "status": "RECOGNIZED" if is_known else "UNIDENTIFIED",
+                "id": obj["id"],
                 "known": is_known,
-                "timestamp": time.time()
+                "coords": {"x": obj["x"], "y": obj["y"], "w": obj["w"], "h": obj["h"]}
             })
             
-        # Calculate Trap Strength Z (Noise Floor)
-        # Z approaches 1.0 if the room is full of unidentified objects (chaos)
-        # Z approaches 0.0 if the environment is fully symbolized (order)
-        self.trap_strength_z = min(0.95, 0.05 + (unknown_count * 0.25))
+        # Sandy's Law: Noise (Z) spikes if he can't identify his focus
+        self.trap_strength_z = 0.75 if unknown_found else 0.05
         
-        if unknown_count == 0:
+        if not unknown_found:
             self.discovery_needed = False
             self.target_mesh = None
             
         return self.active_ingress
 
-    def get_sensory_telemetry(self):
+    def get_fixation_hud(self):
         """
-        Returns the noise/entropy metadata for the L00 Mathematical Governor.
+        Returns the data needed to draw the reticle on the dashboard.
         """
         return {
-            "trap_strength_z": round(self.trap_strength_z, 3),
-            "discovery_active": self.discovery_needed,
-            "target_mesh": self.target_mesh,
-            "manifold_status": "STABLE" if self.trap_strength_z < 0.5 else "HIGH_ENTROPY"
+            "is_fixated": self.discovery_needed,
+            "target": self.target_mesh,
+            "box": self.fixation_data,
+            "z_noise": self.trap_strength_z
         }
-
-    def process_acoustic_buffer(self, duration_ms):
-        """
-        Implementation of the 2000ms Silence Threshold rule.
-        Flushes buffer to L10 for linguistic extraction once silence is detected.
-        """
-        if duration_ms > 2000:
-            return "BUFFER_FLUSH_TRIGGERED"
-        return "LISTENING"
 
