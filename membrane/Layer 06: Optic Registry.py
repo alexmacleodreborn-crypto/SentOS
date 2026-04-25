@@ -1,39 +1,52 @@
 
 # A7DO Sentience OS - Layer 06: Optic Registry
-# Visual Sensory Ingress and Face Detection Bridge
+# Active Object Identification & Symbolization Discovery
+
+import random
 
 class OpticRegistry:
     def __init__(self):
-        self.registry_status = "STANDBY"
-        self.last_detection = None
-        self.spatial_depth_mapped = False
+        self.status = "OBSERVING"
+        self.known_object_tokens = ["BIOLOGICAL_PRIME", "SKELETON_CHASSIS"]
+        self.detected_buffer = []
+        self.discovery_needed = False
+        self.active_unidentified_mesh = None
+
+    def scan_environment(self, frame_data):
+        """
+        Simulates the detection of bounding boxes and meshes in the room.
+        """
+        # Simulated "Discovered" items in the camera view
+        potential_objects = ["PHONE", "CUP", "UNKNOWN_GEOMETRY_01", "CHAIR"]
+        detected = random.sample(potential_objects, 2)
         
-        # Morphological Mesh Points (Visual anchors for the face)
-        self.mesh_anchors = {
-            "zygomatic_L": 0.0,
-            "zygomatic_R": 0.0,
-            "mandible_base": 0.0,
-            "orbital_clusters": []
-        }
+        self.detected_buffer = []
+        self.discovery_needed = False
+        
+        for obj in detected:
+            is_known = obj in self.known_object_tokens
+            self.detected_buffer.append({
+                "raw_token": obj,
+                "confidence": round(random.uniform(0.85, 0.99), 2),
+                "is_known": is_known
+            })
+            if not is_known:
+                self.discovery_needed = True
+                self.active_unidentified_mesh = obj
+                
+        return self.detected_buffer
 
-    def initialize_optic_link(self):
-        self.registry_status = "ACTIVE"
-        return "OPTIC_LINK: Camera buffer initialized. Awaiting user presence."
-
-    def process_visual_mesh(self, frame_data):
-        """
-        Simulates the extraction of facial geometry.
-        In the 'Bubble', this assumes the user is sitting facing A7DO.
-        """
-        if frame_data:
-            self.last_detection = "BIOLOGICAL_PRIME"
-            self.spatial_depth_mapped = True
-            return True
-        return False
+    def learn_token(self, token):
+        self.known_object_tokens.append(token.upper())
+        self.discovery_needed = False
+        return f"OPTIC_STABILIZED: Symbol '{token}' added to Known Registry."
 
     def get_sensory_logs(self):
         return {
-            "status": self.registry_status,
-            "depth_mapped": self.spatial_depth_mapped,
-            "target": self.last_detection
+            "detecting": self.status,
+            "buffer_count": len(self.detected_buffer),
+            "discovery_flag": self.discovery_needed,
+            "active_mesh": self.active_unidentified_mesh
         }
+
+
