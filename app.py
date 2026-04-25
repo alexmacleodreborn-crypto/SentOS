@@ -15,8 +15,7 @@ def load_layer(name, path):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
-    except Exception as e:
-        return f"Error: {e}"
+    except: return None
 
 LAYER_MAP = {
     "L00": "core/Layer 00: Sandy's Law.py",
@@ -34,9 +33,6 @@ LAYER_MAP = {
 if 'a7do' not in st.session_state:
     mods = {k: load_layer(k, v) for k, v in LAYER_MAP.items()}
     
-    # Store load status
-    st.session_state.boot_log = mods
-
     layers = {}
     for k in ["L00", "L01", "L02", "L03", "L05", "L06", "L07", "L10"]:
         m = mods.get(k)
@@ -50,65 +46,63 @@ if 'a7do' not in st.session_state:
             elif k == "L07": layers[k] = m.GrowthEngine(birth_scale=0.1)
             elif k == "L10": layers[k] = m.CognitiveArchive(neurotype="ADHD_AUTISM")
 
-    # Initialize Master Frame
-    frame_mod = mods.get("FRAME")
-    master = None
-    if frame_mod and not isinstance(frame_mod, str):
-        try:
-            master = frame_mod.A7DO_Frame(layers)
-        except Exception as e:
-            st.session_state.boot_log["FRAME_ERR"] = str(e)
+    master = mods["FRAME"].A7DO_Frame(layers) if mods.get("FRAME") else None
 
     st.session_state.a7do = {
-        "layers": layers,
         "master": master,
+        "layers": layers,
         "boot_time": datetime.now()
     }
 
-# --- UI STYLING ---
+# --- UI SETTINGS ---
 st.set_page_config(page_title="A7DO Sentience OS", layout="wide")
 st.markdown("""<style>.stMetric { background-color: #161b22; border: 1px solid #30363d; padding: 15px; border-radius: 12px; }</style>""", unsafe_allow_html=True)
 
-# --- SIDEBAR & HEARTBEAT ---
+# --- SIDEBAR & DEFENSIVE TELEMETRY ---
 with st.sidebar:
     st.title("🛡️ A7DO v12.6")
-    page = st.radio("Navigation:", ["Growth Dashboard", "Diagnostics", "Mindprint"])
+    page = st.radio("Navigation:", ["3D Growth Dashboard", "Physical Data", "Cognitive Archive"])
+    st.divider()
     
+    # Pulse Heartbeat
     if st.session_state.a7do["master"]:
+        # Heartbeat returns the full state dictionary
         state = st.session_state.a7do["master"].execute_biological_heartbeat()
-        st.metric("MATURITY", f"{state['growth']['maturity_percent']}%")
-        st.metric("COHERENCE", f"{state['governance']['coherence_index']:.4f}")
-        st.metric("ATP ENERGY", f"{state['vitals']['atp']}%")
+        
+        # DEFENSIVE METRIC RENDERING: Prevents KeyError if state is loading
+        st.metric("MATURITY", f"{state.get('growth', {}).get('maturity_percent', 0)}%")
+        st.metric("COHERENCE", f"{state.get('governance', {}).get('coherence_index', 0):.4f}")
+        st.metric("ATP ENERGY", f"{state.get('vitals', {}).get('atp', 0)}%")
     else:
         st.error("Master Frame Offline")
         state = None
 
-# --- GROWTH DASHBOARD ---
-if page == "Growth Dashboard":
-    st.title("🌱 Morphological Growth Timeline")
+# --- DASHBOARD: THE GROWING ORGANISM ---
+if page == "3D Growth Dashboard":
+    st.title("🌱 Morphological Synthesis Timeline")
     
-    col1, col2 = st.columns([1, 1])
+    col1, col2 = st.columns([1.5, 1])
     
     with col1:
-        st.subheader("3D Synthetic Synthesis")
-        if state:
+        st.subheader("Synthetic Manifold (3D View)")
+        if state and "physics" in state:
             bones = state["physics"]["bones"]
             df = pd.DataFrame([{"id": k, "x": v[0], "y": v[2], "z": v[1]} for k, v in bones.items()])
             
             fig = go.Figure()
-            # Bone Nodes
+            # Bone Nodes (Points)
             fig.add_trace(go.Scatter3d(
                 x=df['x'], y=df['y'], z=df['z'],
                 mode='markers', marker=dict(size=3, color='#58a6ff'),
                 text=df['id'], hoverinfo='text'
             ))
-            # Muscle Vectors
+            # Muscle Actuators (Vectors)
             for m in state["physics"]["muscles"]:
                 fig.add_trace(go.Scatter3d(
-                    x=[m["p1"][0], m["p2"][0]],
-                    y=[m["p1"][2], m["p2"][2]],
-                    z=[m["p1"][1], m["p2"][1]],
-                    mode='lines', line=dict(color='rgba(255,100,100,0.2)', width=2),
+                    x=[m["origin"][0], m["insertion"][0]],
+                    y=[m["origin"][2], m["insertion"][2]],
+                    z=[m["origin"][1], m["insertion"][1]],
+                    mode='lines', line=dict(color='rgba(255, 100, 100, 0.2)', width=2),
                     hoverinfo='none'
                 ))
             
@@ -116,22 +110,26 @@ if page == "Growth Dashboard":
             st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.subheader("Growth Telemetry")
+        st.subheader("Growth Physics")
         if state:
-            st.write(f"**Current Scale (x):** `{state['growth']['scale_x']}`")
-            st.write(f"**Strength (x²):** `{state['growth']['strength_x2']}`")
-            st.write(f"**Mass Load (x³):** `{state['growth']['mass_x3']}`")
-            st.progress(state['growth']['maturity_percent'] / 100)
+            st.write(f"**Current Scale (x):** `{state['growth'].get('scale_x', 0)}`")
+            st.write(f"**Structural Area (x²):** `{state['growth'].get('strength_x2', 0)}`")
+            st.write(f"**Mass Load (x³):** `{state['growth'].get('mass_x3', 0)}`")
+            st.progress(float(state['growth'].get('maturity_percent', 0) / 100))
+            
+            st.divider()
+            st.info("System is maturing using baby-to-adult synthetic growth logic.")
 
-elif page == "Diagnostics":
-    st.title("🛠️ System Boot Log")
-    for k, v in st.session_state.boot_log.items():
-        st.write(f"**{k}:** {v if isinstance(v, str) else '✅ Loaded'}")
+# --- OTHER VIEWS ---
+elif page == "Physical Data":
+    st.title("🦴 206-Bone Registry")
+    st.json(st.session_state.a7do["layers"]["L01"].bone_registry)
 
-elif page == "Mindprint":
-    st.title("🧠 Cognitive Neocortex (k=0.05)")
+elif page == "Cognitive Archive":
+    st.title("🧠 Neocortex Mindprint (k=0.05)")
     st.json(st.session_state.a7do["layers"]["L10"].archive)
 
+# Constant Pulse
 time.sleep(1)
 st.rerun()
 
