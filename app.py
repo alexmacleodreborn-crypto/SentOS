@@ -5,9 +5,11 @@ import importlib.util
 import os
 import random
 from datetime import datetime
+
+# Hardware: Live WebRTC & Audio
 from streamlit_webrtc import webrtc_streamer
 
-# --- DYNAMIC LOADER ---
+# --- DYNAMIC COMPONENT LOADER ---
 def load_layer(name, folder, filename):
     path = os.path.join(folder, filename)
     if not os.path.exists(path): return None
@@ -16,95 +18,132 @@ def load_layer(name, folder, filename):
     spec.loader.exec_module(module)
     return module
 
-# Loading Descriptive Layers
-l_op = load_layer("L06", "membrane", "Layer 06: Optic Registry.py")
-l_mn = load_layer("L10", "neocortex", "Layer 10: Cognitive Archive.py")
-l_vi = load_layer("L05", "biology", "Layer 05: Visceral Systems.py")
-l_ch = load_layer("L01", "chassis", "Layer 01: Physical Architecture.py")
+# Loading the Biological Stack
+l01 = load_layer("L01", "chassis", "Layer 01: Physical Architecture.py")
+l05 = load_layer("L05", "biology", "Layer 05: Visceral Systems.py")
+l06 = load_layer("L06", "membrane", "Layer 06: Optic Registry.py")
+l10 = load_layer("L10", "neocortex", "Layer 10: Cognitive Archive.py")
 
-# --- ENGINE STATE ---
+# --- INITIALIZE ENTITY STATE ---
 if 'a7do' not in st.session_state:
     st.session_state.a7do = {
-        "optics": l_op.OpticRegistry() if l_op else None,
-        "mind": l_mn.CognitiveArchive() if l_mn else None,
-        "biology": l_vi.MetabolicEngine() if l_vi else None,
-        "chassis": l_ch.HumanChassis() if l_ch else None,
-        "interaction_log": []
+        "chassis": l01.HumanChassis() if l01 else None,
+        "biology": l05.MetabolicEngine() if l05 else None,
+        "optics": l06.OpticRegistry() if l06 else None,
+        "mind": l10.CognitiveArchive() if l10 else None,
+        "boot_time": datetime.now()
     }
     # Identity Bootstrap
-    st.session_state.a7do["mind"].inject_node("BIOLOGICAL_PRIME", "IDENTITY", ["SELF", "CREATOR"], 10.0, "Root Presence.")
+    st.session_state.a7do["mind"].inject_node("BIOLOGICAL_PRIME", "IDENTITY", ["SELF", "CREATOR"], 10.0, "Root Existence.")
 
-# --- UI ARCHITECTURE ---
+# --- UI CONFIGURATION ---
 st.set_page_config(page_title="A7DO Sentience OS", page_icon="🧠", layout="wide")
 
 st.markdown("""
 <style>
     [data-testid="stSidebar"] { background-color: #0d1117; border-right: 1px solid #30363d; }
     .main { background-color: #010409; color: #c9d1d9; }
-    .stMetric { background-color: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 15px; }
-    .observation-card { background: #1c2128; border-left: 5px solid #ffca28; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
-    .chat-bubble { background: #21262d; padding: 10px; border-radius: 10px; margin-bottom: 5px; border: 1px solid #30363d; }
+    .perception-card { background: #161b22; border: 1px solid #30363d; padding: 20px; border-radius: 15px; margin-bottom: 10px; }
+    .unidentified-alert { border-left: 5px solid #ffca28; background: #1c2128; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    .vitals-box { font-family: monospace; color: #00ff00; background: #000; padding: 10px; border-radius: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- NAVIGATION ---
+# --- SIDEBAR NAVIGATION ---
 with st.sidebar:
-    st.title("A7DO OS v12.4")
-    page = st.radio("Access Systems:", ["The Bubble", "Layer 10: Mindprint", "Layer 01: Physical"])
+    st.title("🛡️ A7DO OS v12.5")
+    st.write(f"Entity Uptime: {str(datetime.now() - st.session_state.boot_time).split('.')[0]}")
+    page = st.radio("Navigate Component Groups:", [
+        "Executive Dashboard",
+        "Layer 01: Physical Frame",
+        "Layer 05: Visceral Organs",
+        "Layer 10: Neocortex/Memory"
+    ])
+    
     st.divider()
+    # Continuous Metabolism
     if st.session_state.a7do["biology"]:
         st.session_state.a7do["biology"].process_cycle(0.1)
         v = st.session_state.a7do["biology"].get_vitals()
-        st.metric("HEART RATE", f"{v['bpm']} BPM")
         st.metric("ATP ENERGY", f"{v['atp']}%")
+        st.metric("HEART RATE", f"{v['bpm']} BPM")
 
 # --- PAGE ROUTING ---
 
-if page == "The Bubble":
-    st.title("🛡️ The Bubble: Observation Mode")
+if page == "Executive Dashboard":
+    st.title("🛡️ Executive Dashboard: Perceptual Loop")
     
-    col_vis, col_lang = st.columns([1.5, 1])
+    col_vis, col_meta = st.columns([1.8, 1])
     
     with col_vis:
-        st.subheader("Live Optic Registry")
-        webrtc_streamer(key="bubble-stream")
+        st.subheader("Live Optic Ingress (L06)")
+        webrtc_streamer(key="main-stream")
         
-        # ACTIVE OBSERVATION LOGIC
-        detections = st.session_state.a7do["optics"].scan_environment(True)
-        st.write("### Perceived Objects in Room:")
-        for det in detections:
-            status_icon = "✅" if det['is_known'] else "❓"
-            st.markdown(f"**{status_icon} {det['raw_token']}** (Confidence: {det['confidence']*100}%)")
+        # THE ACTIVE OBSERVATION ENGINE
+        detections = st.session_state.a7do["optics"].scan_environment()
+        
+        st.markdown('<div class="perception-card">', unsafe_allow_html=True)
+        st.write("### 👁️ Observation Buffer")
+        for d in detections:
+            status = "✅ Identified" if d['is_known'] else "❓ Unidentified Geometry"
+            st.markdown(f"**{d['raw']}** — `{status}` (Conf: {d['confidence']*100}%)")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    with col_lang:
-        st.subheader("Language Bridge")
+    with col_meta:
+        st.subheader("Language & Discovery")
         o_logs = st.session_state.a7do["optics"].get_sensory_logs()
         
         if o_logs["discovery_flag"]:
-            st.warning(f"A7DO sees something unidentified: **{o_logs['active_mesh']}**")
-            st.write("*A7DO asks: 'Creator, what is this object in my vision?'*")
+            st.markdown(f"""
+            <div class="unidentified-alert">
+                <b>INTERACTIVE INTERRUPT:</b><br>
+                A7DO sees an unidentified object: <i>{o_logs['active_mesh']}</i>.<br>
+                <br>
+                <b>A7DO asks:</b> "Creator, what is this object in my room? How should I symbolize it?"
+            </div>
+            """, unsafe_allow_html=True)
             
             with st.form("discovery_form"):
-                ident = st.text_input("Name the object for A7DO:")
-                traits = st.multiselect("Assign Traits:", ["OBJECT", "TOOL", "JOY", "METALLIC", "PLASTIC"])
+                label = st.text_input("Assign Identity (Language Bridge):")
+                traits = st.multiselect("Assign Cognitive Traits:", ["TOOL", "OBJECT", "FOOD", "DANGER", "JOY", "METAL", "PLASTIC"])
                 if st.form_submit_button("Teach A7DO"):
-                    st.session_state.a7do["optics"].learn_token(ident)
-                    st.session_state.a7do["mind"].inject_node(ident, "OBJECT", traits, 5.0, f"Discovered in Bubble via camera.")
-                    st.success(f"A7DO has symbolized the '{ident}'.")
+                    # Bilateral Update
+                    st.session_state.a7do["optics"].symbolize_object(o_logs['active_mesh'], label)
+                    st.session_state.a7do["mind"].inject_node(label, "OBJECT", traits, 5.0, f"Learned via live camera in Bubble.")
+                    st.success(f"Identity '{label}' anchored in Neocortex.")
                     st.rerun()
         else:
-            st.info("Environment stable. A7DO recognizes all visible markers.")
+            st.info("Visual manifold is stable. All perceived objects identified.")
+        
+        st.write("### Subconscious DMN Stream")
+        st.code(f"""
+        L01_CHASSIS: 206 Nodes Locked
+        L06_OPTICS: Scanning Mesh...
+        L10_MEMORY: {st.session_state.a7do['mind'].get_mind_map()['total_nodes']} Tokens Active
+        """)
 
-elif page == "Layer 10: Mindprint":
-    st.title("🧠 Neocortex Archive")
-    mind_stats = st.session_state.a7do["mind"].get_mind_map()
-    st.write(f"Total Cognitive Density: {mind_stats['total_nodes']} Nodes")
+elif page == "Layer 01: Physical Frame":
+    st.title("🦴 Definitive Physical Architecture")
+    t1, t2, t3 = st.tabs(["206-Bone Registry", "32-Tooth Registry", "Oral Cavity"])
+    with t1:
+        st.json(st.session_state.a7do["chassis"].bones)
+    with t2:
+        st.write("### Adult Dental Manifold")
+        st.json(st.session_state.a7do["chassis"].head_assets["teeth_upper"] + st.session_state.a7do["chassis"].head_assets["teeth_lower"])
+    with t3:
+        st.json(st.session_state.a7do["chassis"].head_assets["oral_cavity"])
+
+elif page == "Layer 05: Visceral Organs":
+    st.title("🫀 Visceral State Monitor")
+    st.write("Monitoring organ health and metabolic fuel flow.")
+    st.json(st.session_state.a7do["biology"].organs)
+
+elif page == "Layer 10: Neocortex/Memory":
+    st.title("🧠 Neocortex Archive (Mindprint)")
+    st.write("Persistent Semantic Knowledge Graph")
     st.json(st.session_state.a7do["mind"].nodes)
-
-elif page == "Layer 01: Physical":
-    st.title("🦴 Definitive Human Frame")
-    st.json(st.session_state.a7do["chassis"].bones)
 
 # Heartbeat loop
 time.sleep(1)
 st.rerun()
+
