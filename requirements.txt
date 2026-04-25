@@ -1,7 +1,5 @@
 streamlit
 streamlit-webrtc
-streamlit-mic-recorder
-numpy
-datetime
 plotly
+numpy
 pandas
