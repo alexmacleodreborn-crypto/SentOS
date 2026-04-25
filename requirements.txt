@@ -1,6 +1,6 @@
-plotly==5.18.0
 streamlit
 streamlit-webrtc
+plotly
+matplotlib
 numpy
 pandas
-
