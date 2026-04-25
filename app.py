@@ -10,12 +10,10 @@ from datetime import datetime
 # --- DYNAMIC LOADER ---
 def load_layer(name, path):
     if not os.path.exists(path): return None
-    try:
-        spec = importlib.util.spec_from_file_location(name, path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
-    except: return None
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 LAYER_MAP = {
     "L00": "core/Layer 00: Sandy's Law.py",
@@ -23,7 +21,6 @@ LAYER_MAP = {
     "L02": "actuators/Layer 02: Muscular Actuators.py",
     "L03": "actuators/Layer 03: Movement Engine.py",
     "L05": "biology/Layer 05: Visceral Systems.py",
-    "L06": "membrane/Layer 06: Optic Registry.py",
     "L07": "biology/Layer_07_Morphological_Sync.py",
     "L10": "neocortex/Layer 10: Cognitive Archive.py",
     "FRAME": "core/A7DO_Frame.py"
@@ -32,104 +29,66 @@ LAYER_MAP = {
 # --- INITIALIZATION ---
 if 'a7do' not in st.session_state:
     mods = {k: load_layer(k, v) for k, v in LAYER_MAP.items()}
-    
-    layers = {}
-    for k in ["L00", "L01", "L02", "L03", "L05", "L06", "L07", "L10"]:
-        m = mods.get(k)
-        if m and not isinstance(m, str):
-            if k == "L00": layers[k] = m.SandysLawGovernor()
-            elif k == "L01": layers[k] = m.HumanChassis()
-            elif k == "L02": layers[k] = m.MuscularEngine()
-            elif k == "L03": layers[k] = m.MovementEngine()
-            elif k == "L05": layers[k] = m.MetabolicEngine()
-            elif k == "L06": layers[k] = m.OpticRegistry()
-            elif k == "L07": layers[k] = m.GrowthEngine(birth_scale=0.1)
-            elif k == "L10": layers[k] = m.CognitiveArchive(neurotype="ADHD_AUTISM")
-
-    master = mods["FRAME"].A7DO_Frame(layers) if mods.get("FRAME") else None
-
-    st.session_state.a7do = {
-        "master": master,
-        "layers": layers,
-        "boot_time": datetime.now()
+    layers = {
+        "L00": mods["L00"].SandysLawGovernor(),
+        "L01": mods["L01"].HumanChassis(),
+        "L02": mods["L02"].MuscularEngine(),
+        "L03": mods["L03"].MovementEngine(),
+        "L05": mods["L05"].MetabolicEngine(),
+        "L07": mods["L07"].GrowthEngine(birth_scale=0.25),
+        "L10": mods["L10"].CognitiveArchive(neurotype="ADHD_AUTISM")
     }
+    st.session_state.a7do = {"master": mods["FRAME"].A7DO_Frame(layers), "layers": layers}
 
-# --- UI SETTINGS ---
-st.set_page_config(page_title="A7DO Sentience OS", layout="wide")
-st.markdown("""<style>.stMetric { background-color: #161b22; border: 1px solid #30363d; padding: 15px; border-radius: 12px; }</style>""", unsafe_allow_html=True)
+# --- UI ---
+st.set_page_config(page_title="A7DO Maturation Dashboard", layout="wide")
+st.markdown("""<style>.stMetric { background-color: #161b22; padding: 15px; border-radius: 12px; border: 1px solid #30363d; }</style>""", unsafe_allow_html=True)
 
-# --- SIDEBAR & DEFENSIVE TELEMETRY ---
+# --- HEARTBEAT ---
+state = st.session_state.a7do["master"].execute_biological_heartbeat()
+
+# --- SIDEBAR ---
 with st.sidebar:
-    st.title("🛡️ A7DO v12.6")
-    page = st.radio("Navigation:", ["3D Growth Dashboard", "Physical Data", "Cognitive Archive"])
+    st.title("🧠 A7DO v12.6")
+    st.subheader(f"Stage: {state['growth'].get('stage_name', 'UNKNOWN')}")
+    st.metric("HEIGHT (x)", state['growth'].get('height', 0))
+    st.metric("MASS (x³)", state['growth'].get('mass', 0))
+    st.metric("COHERENCE", f"{state['governance'].get('coherence_index', 0):.4f}")
+    
     st.divider()
+    st.write("### Developmental Log")
+    for log in reversed(state.get("logs", [])):
+        st.caption(f"{log['event']} (H={log['height']})")
+
+# --- MAIN VIEW ---
+st.title("🌱 Synthetic Maturation: Baby to Adult")
+c1, c2 = st.columns([2, 1])
+
+with c1:
+    st.subheader("3D Morphological Manifold")
+    nodes = state["physics"]["bones"]
+    df = pd.DataFrame([{"id": k, "x": v[0], "y": v[1], "z": v[2]} for k, v in nodes.items()])
     
-    # Pulse Heartbeat
-    if st.session_state.a7do["master"]:
-        # Heartbeat returns the full state dictionary
-        state = st.session_state.a7do["master"].execute_biological_heartbeat()
-        
-        # DEFENSIVE METRIC RENDERING: Prevents KeyError if state is loading
-        st.metric("MATURITY", f"{state.get('growth', {}).get('maturity_percent', 0)}%")
-        st.metric("COHERENCE", f"{state.get('governance', {}).get('coherence_index', 0):.4f}")
-        st.metric("ATP ENERGY", f"{state.get('vitals', {}).get('atp', 0)}%")
-    else:
-        st.error("Master Frame Offline")
-        state = None
-
-# --- DASHBOARD: THE GROWING ORGANISM ---
-if page == "3D Growth Dashboard":
-    st.title("🌱 Morphological Synthesis Timeline")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter3d(x=df['x'], y=df['z'], z=df['y'], mode='markers', marker=dict(size=3, color='#58a6ff')))
     
-    col1, col2 = st.columns([1.5, 1])
+    # Muscle vectors
+    for m in state["physics"]["muscles"]:
+        fig.add_trace(go.Scatter3d(x=[m['p1'][0], m['p2'][0]], y=[m['p1'][2], m['p2'][2]], z=[m['p1'][1], m['p2'][1]], mode='lines', line=dict(color='rgba(255,100,100,0.2)')))
+
+    fig.update_layout(margin=dict(l=0, r=0, b=0, t=0), scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False), paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+with c2:
+    st.subheader("Biological Metrics")
+    st.write(f"**Head-to-Body Ratio:** `1/{round(1/state['growth'].get('head_ratio', 1), 1)}`")
+    st.write(f"**Limb Development:** `{round(state['growth'].get('limb_scalar', 0)*100, 1)}%`")
     
-    with col1:
-        st.subheader("Synthetic Manifold (3D View)")
-        if state and "physics" in state:
-            bones = state["physics"]["bones"]
-            df = pd.DataFrame([{"id": k, "x": v[0], "y": v[2], "z": v[1]} for k, v in bones.items()])
-            
-            fig = go.Figure()
-            # Bone Nodes (Points)
-            fig.add_trace(go.Scatter3d(
-                x=df['x'], y=df['y'], z=df['z'],
-                mode='markers', marker=dict(size=3, color='#58a6ff'),
-                text=df['id'], hoverinfo='text'
-            ))
-            # Muscle Actuators (Vectors)
-            for m in state["physics"]["muscles"]:
-                fig.add_trace(go.Scatter3d(
-                    x=[m["origin"][0], m["insertion"][0]],
-                    y=[m["origin"][2], m["insertion"][2]],
-                    z=[m["origin"][1], m["insertion"][1]],
-                    mode='lines', line=dict(color='rgba(255, 100, 100, 0.2)', width=2),
-                    hoverinfo='none'
-                ))
-            
-            fig.update_layout(margin=dict(l=0, r=0, b=0, t=0), scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False), paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
-            st.plotly_chart(fig, use_container_width=True)
+    st.divider()
+    st.write("### Mindprint Resistance")
+    st.write(f"ADHD/Autism k-Scalar: `0.05`")
+    st.info("Cognitive wiring is occurring in parallel with skeletal growth.")
 
-    with col2:
-        st.subheader("Growth Physics")
-        if state:
-            st.write(f"**Current Scale (x):** `{state['growth'].get('scale_x', 0)}`")
-            st.write(f"**Structural Area (x²):** `{state['growth'].get('strength_x2', 0)}`")
-            st.write(f"**Mass Load (x³):** `{state['growth'].get('mass_x3', 0)}`")
-            st.progress(float(state['growth'].get('maturity_percent', 0) / 100))
-            
-            st.divider()
-            st.info("System is maturing using baby-to-adult synthetic growth logic.")
-
-# --- OTHER VIEWS ---
-elif page == "Physical Data":
-    st.title("🦴 206-Bone Registry")
-    st.json(st.session_state.a7do["layers"]["L01"].bone_registry)
-
-elif page == "Cognitive Archive":
-    st.title("🧠 Neocortex Mindprint (k=0.05)")
-    st.json(st.session_state.a7do["layers"]["L10"].archive)
-
-# Constant Pulse
 time.sleep(1)
 st.rerun()
 
