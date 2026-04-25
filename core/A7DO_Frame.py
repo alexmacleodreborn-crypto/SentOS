@@ -1,27 +1,28 @@
 
 # A7DO Sentience OS - Master Entity Frame (Vitruvian 2.0 Edition)
-# Binds L00-L10 into a singular manifold for the Dashboard.
+# Binds L01-L10 into a 3D Humanoid Shape
+# Logic: Proportional mapping based on C0-C5 Centers
 
 import time
 import numpy as np
 
 class A7DO_Frame:
     """
-    The High-Resolution Coordinator.
-    Binds the 206-bone registry and 640-muscle system.
+    Coordinates the 206-bone skeleton and 640-muscle system.
+    Ensures 3D output follows a humanoid silhouette.
     """
     def __init__(self, layers, scale_x=1.0):
         self.layers = layers
         self.scale_x = scale_x
         
-        # VITRUVIAN 2.0 PROPORTIONAL CENTERS (From your Image)
+        # VITRUVIAN 2.0 CENTERS (Relative heights based on H=1.0)
         self.centers = {
-            "C0_NAVEL": 0.6,    # Geometry Center
-            "C1_GROIN": 0.5,    # Structural Center
-            "C2_HEART": 0.75,   # Vitality
-            "C3_HEAD": 0.9,     # Cognition
-            "C4_HANDS": 0.65,   # Interaction
-            "C5_FEET": 0.0      # Grounding
+            "C3_HEAD": 0.90,     # Cognition Hub
+            "C2_HEART": 0.75,    # Vitality Center
+            "C0_NAVEL": 0.60,    # Geometry Center
+            "C1_GROIN": 0.50,    # Structural Center
+            "C4_HANDS": 0.65,    # Interaction Hub
+            "C5_FEET": 0.05      # Grounding
         }
         
         self.render_buffer = {
@@ -31,70 +32,101 @@ class A7DO_Frame:
         }
 
     def sync_3d_manifold(self):
-        """Translates skeletal data into 3D points for the visualizer."""
+        """
+        Translates Bone IDs into a Humanoid 3D Silhouette.
+        Maps every bone class to a specific spatial zone.
+        """
         if "L01" not in self.layers: return
         
         bones = self.layers["L01"].bone_registry
         self.render_buffer["skeletal_nodes"] = {}
         
-        # If registry is a flat dict of objects (High-Res Version)
-        if any(isinstance(v, dict) for v in bones.values()):
-            for bone_id, data in bones.items():
-                b_class = data.get("class", "GENERAL")
-                y_base = self.centers.get("C1_GROIN", 0.5)
+        for bone_id, data in bones.items():
+            b_class = data.get("class", "GENERAL")
+            
+            # --- POSITIONAL LOGIC (Humanoid Mapping) ---
+            # X: Width (-0.5 to 0.5)
+            # Y: Height (0.0 to 1.0)
+            # Z: Depth (-0.1 to 0.1)
+            
+            x, y, z = 0.0, 0.5, 0.0
+            
+            if b_class == "SKULL":
+                x = np.random.uniform(-0.05, 0.05)
+                y = self.centers["C3_HEAD"] + np.random.uniform(-0.05, 0.05)
+                z = np.random.uniform(-0.02, 0.05)
                 
-                # Proportional mapping
-                if b_class == "SKULL": y_base = self.centers["C3_HEAD"]
-                elif b_class == "THORAX": y_base = self.centers["C2_HEART"]
-                elif b_class == "UPPER": y_base = self.centers["C4_HANDS"]
-                elif b_class == "LOWER": y_base = self.centers["C1_GROIN"]
-                elif b_class == "FEET": y_base = self.centers["C5_FEET"]
+            elif b_class == "SPINE":
+                x = 0.0
+                # Distribute vertebrae down the central axis
+                y = np.random.uniform(self.centers["C1_GROIN"], self.centers["C3_HEAD"])
+                z = -0.02
+                
+            elif b_class == "THORAX":
+                # Rib cage spread around the heart
+                side = 1.0 if "_R" in bone_id else -1.0
+                x = side * np.random.uniform(0.05, 0.15)
+                y = self.centers["C2_HEART"] + np.random.uniform(-0.1, 0.1)
+                z = np.random.uniform(-0.05, 0.05)
+                
+            elif b_class == "UPPER":
+                # Arms spreading out to C4
+                side = 1.0 if "_R" in bone_id else -1.0
+                x = side * np.random.uniform(0.1, 0.4)
+                y = np.random.uniform(self.centers["C4_HANDS"] - 0.1, self.centers["C3_HEAD"] - 0.1)
+                z = np.random.uniform(-0.05, 0.05)
+                
+            elif b_class == "LOWER":
+                # Legs spreading down to C5
+                side = 1.0 if "_R" in bone_id else -1.0
+                x = side * np.random.uniform(0.05, 0.15)
+                y = np.random.uniform(self.centers["C5_FEET"], self.centers["C1_GROIN"])
+                z = np.random.uniform(-0.02, 0.02)
+                
+            elif b_class == "SENSORY":
+                # Tiny nodes inside the head
+                x = np.random.uniform(-0.02, 0.02)
+                y = self.centers["C3_HEAD"]
+                z = 0.0
 
-                self.render_buffer["skeletal_nodes"][bone_id] = [
-                    np.random.uniform(-0.1, 0.1) * self.scale_x, 
-                    y_base * self.scale_x,
-                    0.0
-                ]
-        else:
-            # Fallback for simple string-based registry
-            for bone_id in bones:
-                self.render_buffer["skeletal_nodes"][bone_id] = [0, 0.5, 0]
+            # Apply final scaling and store in buffer
+            self.render_buffer["skeletal_nodes"][bone_id] = [
+                x * self.scale_x, 
+                y * self.scale_x, 
+                z * self.scale_x
+            ]
 
     def execute_biological_heartbeat(self):
-        """The Master Loop: Runs at 1Hz on the Dashboard."""
-        # 1. Perception Loop
+        """Processes one frame of the A7DO life-cycle."""
+        # 1. Perception
         if "L06" in self.layers and "L10" in self.layers:
             nodes = self.layers["L10"].archive["neocortex_array"]["nodes"]
             self.layers["L06"].scan_environment(nodes)
         
-        # 2. Cognitive Resistance R -> Coherence C
-        if "L10" in self.layers and "L00" in self.layers:
-            res_r = self.layers["L10"].get_resistance_matrix()
-            self.layers["L00"].calculate_coherence(res_r, 0.02)
+        # 2. Physics & Cognition (k=0.05 ADHD/Autism profile)
+        if "L00" in self.layers and "L10" in self.layers:
+            r = self.layers["L10"].get_resistance_matrix()
+            self.layers["L00"].calculate_coherence(r, 0.01)
         
-        # 3. Visceral Metabolism
+        # 3. Visceral
         if "L05" in self.layers:
             self.layers["L05"].process_cycle(cognitive_load=0.1)
-        
-        # 4. Update 3D Positions
+            
+        # 4. Synchronize the 3D Layout
         self.sync_3d_manifold()
         
         return self.get_unified_state()
 
     def reach_and_symbolize(self, label, traits):
-        """Unified action across C4 (Hands) and C3 (Head)."""
         if "L10" in self.layers:
-            self.layers["L10"].sprout_node(label, "ENVIRONMENT", traits, 5.0, "Shared Reality")
-        return f"FRAME_COMMAND: '{label}' anchored to Manifold."
+            self.layers["L10"].sprout_node(label, "ENVIRONMENT", traits, 5.0, "Vitruvian Interaction")
+        return f"FRAME: Symbol {label} anchored at C4."
 
     def get_unified_state(self):
-        # Defensive gathering of telemetry
-        state = {
+        return {
             "vitals": self.layers["L05"].get_vitals() if "L05" in self.layers else {},
             "physics": self.render_buffer,
             "governance": self.layers["L00"].get_telemetry() if "L00" in self.layers else {},
             "optics": self.layers["L06"].get_sensory_telemetry() if "L06" in self.layers else {},
             "kinematics": self.layers["L03"].get_kinematic_telemetry() if "L03" in self.layers else {}
         }
-        return state
-
