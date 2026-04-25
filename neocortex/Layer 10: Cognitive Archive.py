@@ -141,4 +141,3 @@ class CognitiveArchive:
         
         total_r = sum(b["resistance"] for b in bridges)
         return total_r / len(bridges)
-
