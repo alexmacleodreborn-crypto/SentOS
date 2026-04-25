@@ -7,46 +7,40 @@ import random
 class OpticRegistry:
     def __init__(self):
         self.status = "OBSERVING"
-        self.known_object_tokens = ["BIOLOGICAL_PRIME", "SKELETON_CHASSIS"]
+        # Initial known world tokens
+        self.known_tokens = ["BIOLOGICAL_PRIME", "SKELETON_CHASSIS", "THE_BUBBLE"]
         self.detected_buffer = []
         self.discovery_needed = False
-        self.active_unidentified_mesh = None
+        self.unidentified_geometry = None
 
-    def scan_environment(self, frame_data):
+    def scan_environment(self):
         """
-        Simulates the detection of bounding boxes and meshes in the room.
+        Simulates the detection of bounding boxes and meshes in the camera view.
         """
-        # Simulated "Discovered" items in the camera view
-        potential_objects = ["PHONE", "CUP", "UNKNOWN_GEOMETRY_01", "CHAIR"]
-        detected = random.sample(potential_objects, 2)
+        room_objects = ["PHONE", "MUG", "MYSTERY_OBJECT_A", "CHAIR", "BOOK", "UNKNOWN_SHAPE_04"]
+        # Select two random objects currently in 'view'
+        current_view = random.sample(room_objects, 2)
         
         self.detected_buffer = []
         self.discovery_needed = False
         
-        for obj in detected:
-            is_known = obj in self.known_object_tokens
+        for obj in current_view:
+            is_known = obj in self.known_tokens
             self.detected_buffer.append({
-                "raw_token": obj,
+                "raw": obj,
                 "confidence": round(random.uniform(0.85, 0.99), 2),
                 "is_known": is_known
             })
             if not is_known:
                 self.discovery_needed = True
-                self.active_unidentified_mesh = obj
+                self.unidentified_geometry = obj
                 
         return self.detected_buffer
 
-    def learn_token(self, token):
-        self.known_object_tokens.append(token.upper())
+    def symbolize_object(self, original_raw, user_identity):
+        """
+        Updates the registry once the user provides a linguistic label.
+        """
+        self.known_tokens.append(user_identity.upper())
         self.discovery_needed = False
-        return f"OPTIC_STABILIZED: Symbol '{token}' added to Known Registry."
-
-    def get_sensory_logs(self):
-        return {
-            "detecting": self.status,
-            "buffer_count": len(self.detected_buffer),
-            "discovery_flag": self.discovery_needed,
-            "active_mesh": self.active_unidentified_mesh
-        }
-
-
+        return f"OPTIC_STABILIZED: Shape {original_raw} mapped to {user_identity}."
