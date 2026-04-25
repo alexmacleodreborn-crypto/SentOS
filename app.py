@@ -153,4 +153,3 @@ else:
     time.sleep(1)
     st.rerun()
 
-```
