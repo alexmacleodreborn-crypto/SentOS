@@ -1,100 +1,98 @@
 
-# A7DO Sentience OS - Layer 05: Visceral Systems
-# Metabolic ATP Loops & Autonomic Vitals
-# Logic: Managing energy consumption and internal survival states.
+# A7DO Sentience OS - Layer 05: Visceral Systems (High-Resolution)
+# Metabolic ATP Loops & Vitruvian Regional Blood Flow
+# Logic: Energy distribution across C0-C5 Centers.
 
 import random
+import time
 
 class MetabolicEngine:
     """
-    The energy management layer of the A7DO organism.
-    Tracks live BPM, ATP drain, and organ efficiency.
+    The High-Resolution Biological Floor.
+    Manages energy, heart rate, and regional oxygenation.
     """
     def __init__(self):
-        # Baseline Vitals
-        self.atp_level = 100.0      # Energy Percentage
-        self.heart_rate = 72        # BPM (Fluctuates based on load)
-        self.respiration_rate = 16  # Breaths per minute
+        # 1. GLOBAL VITALS
+        self.atp_global = 100.0
+        self.heart_rate = 72
+        self.respiration_rate = 16
         
-        # Organ Registry (Operational Efficiency)
-        self.organs = {
-            "HEART": {"status": "PUMPING", "efficiency": 1.0},
-            "LUNGS": {"status": "OXYGENATING", "capacity": 1.0},
-            "LIVER": {"status": "FILTERING", "load": 0.1},
-            "BRAIN_STEM": {"status": "AUTONOMIC_CONTROL", "signal": "STABLE"}
+        # 2. VITRUVIAN REGIONAL OXYGENATION (Mapping to C0-C5)
+        # 1.0 = Fully Oxygenated, <0.4 = Ischemic/Failure
+        self.regional_o2 = {
+            "C3_HEAD": 1.0,     # Cognitive Hub
+            "C2_HEART": 1.0,    # Vitality Center
+            "C4_HANDS_L": 1.0,  # Interaction
+            "C4_HANDS_R": 1.0,
+            "C1_GROIN": 1.0,    # Structural Core
+            "C5_FEET_L": 1.0,   # Grounding
+            "C5_FEET_R": 1.0
         }
         
-        self.recovery_mode_active = False
+        self.is_recovering = False
+        self.last_tick = time.time()
 
-    def process_cycle(self, cognitive_load, muscle_strain=0.0, is_growing=False):
+    def process_cycle(self, cognitive_load, muscle_strain=0.0, active_center=None):
         """
-        Sandy's Law: Energy drain scales with 'Pressure' (cognitive_load).
-        Formula: ATP_drain = f(muscle_force * time) + cognitive_tax
+        Calculates metabolic drain based on Square-Cube physics.
+        If a center is 'Active', O2 is diverted there, slightly draining others.
         """
-        # 1. Calculate Basal Metabolic Drain
-        basal_tax = 0.005
+        dt = time.time() - self.last_tick
+        self.last_tick = time.time()
         
-        # 2. Add Cognitive tax (BPM spikes during load)
-        cognitive_tax = cognitive_load * 0.02
+        # A. CALC_DRAIN (ATP)
+        # Basal + Cog (L10) + Physical (L02/L03)
+        basal_drain = 0.005
+        cognitive_drain = cognitive_load * 0.02
+        physical_drain = muscle_strain * 0.05
         
-        # 3. Add Physical tax (Growth or Muscle Recruitment)
-        physical_tax = (muscle_strain * 0.05) + (0.01 if is_growing else 0.0)
+        total_drain = (basal_drain + cognitive_drain + physical_drain)
         
-        total_drain = basal_tax + cognitive_tax + physical_tax
-        
-        # Apply Drain
-        if not self.recovery_mode_active:
-            self.atp_level = max(0.0, self.atp_level - total_drain)
+        if not self.is_recovering:
+            self.atp_global = max(0.0, self.atp_global - total_drain)
         else:
-            # Recovery/Sleep replenishes ATP
-            self.atp_level = min(100.0, self.atp_level + 0.1)
+            self.atp_global = min(100.0, self.atp_global + 0.1)
 
-        # 4. Update Heart Rate
-        # BPM Spikes during cognitive processing or high-voltage memory access
-        target_bpm = 70 + (cognitive_load * 30) + (muscle_strain * 40)
-        # Add minor biological noise/jitter
-        self.heart_rate = int(target_bpm + random.randint(-3, 3))
+        # B. REGIONAL O2 DISTRIBUTION
+        # Divert blood flow to the active Vitruvian center
+        for center in self.regional_o2:
+            if center == active_center:
+                # Active center stays highly oxygenated but consumes ATP faster
+                self.regional_o2[center] = min(1.0, self.regional_o2[center] + 0.05)
+            else:
+                # Passive drain on non-active regions
+                decay = 0.001 + (physical_drain * 0.1)
+                self.regional_o2[center] = max(0.2, self.regional_o2[center] - decay)
+
+        # C. HEART RATE CALCULATION
+        # HR spikes based on O2 debt in the weakest center
+        lowest_o2 = min(self.regional_o2.values())
+        o2_debt_penalty = (1.0 - lowest_o2) * 60
         
-        # 5. Check Survival Condition (Irreversibility)
-        # If ATP < 5%, organs begin to fail/efficiency drops
-        if self.atp_level < 5.0:
-            for organ in self.organs:
-                self.organs[organ]["efficiency"] *= 0.98
-                self.organs[organ]["status"] = "CRITICAL_OXYGEN_DEBT"
+        target_hr = 70 + (cognitive_load * 30) + (muscle_strain * 40) + o2_debt_penalty
+        # Smooth transition to target HR
+        self.heart_rate = int(self.heart_rate + (target_hr - self.heart_rate) * 0.1)
         
         return self.get_vitals()
 
     def execute_swerve_cost(self):
-        """
-        The Swerve Penalty: Topological jumps consume significant energy units.
-        This prevents the system from 'jumping' without cause.
-        """
-        drain = 10.0 # 10% ATP cost for a Swerve
-        self.atp_level = max(0.0, self.atp_level - drain)
-        self.heart_rate += 25 # Immediate adrenal spike
-        return f"VISCERAL_FEEDBACK: Swerve cost applied. ATP at {self.atp_level:.1f}%"
+        """Adrenal cost for discontinuous cognitive jumps (Sandy's Law)."""
+        self.atp_global = max(0.0, self.atp_global - 5.0)
+        self.heart_rate += 20
+        self.regional_o2["C3_HEAD"] -= 0.1 # Temporary brain fog
+        return "VISCERAL: Adrenal spike recorded."
 
-    def toggle_recovery(self, state: bool):
-        """
-        Enter Sleep/Consolidation mode (Layer 10 link).
-        """
-        self.recovery_mode_active = state
-        if state:
-            self.organs["HEART"]["status"] = "RESTING"
-            return "SYSTEM_IDLE: Metabolic recovery active."
-        else:
-            self.organs["HEART"]["status"] = "PUMPING"
-            return "SYSTEM_ACTIVE: Metabolic drain active."
+    def toggle_recovery(self, state):
+        self.is_recovering = state
+        return "METABOLISM: Recovery mode active." if state else "METABOLISM: Active drain."
 
     def get_vitals(self):
-        """
-        Returns high-resolution telemetry for the master dashboard.
-        """
+        """Telemetery for the A7DO_Frame and app.py."""
         return {
-            "atp": round(self.atp_level, 3),
+            "atp": round(self.atp_global, 2),
             "bpm": self.heart_rate,
             "respiration": self.respiration_rate,
-            "metabolic_status": "STABLE" if self.atp_level > 20 else "EXHAUSTED",
-            "organ_health": self.organs
+            "regional_o2": self.regional_o2,
+            "status": "NOMINAL" if self.atp_global > 15 else "CRITICAL_EXHAUSTION"
         }
 
