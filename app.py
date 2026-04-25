@@ -15,7 +15,8 @@ def load_layer(name, path):
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
-    except: return None
+    except Exception as e:
+        return f"Error: {e}"
 
 LAYER_MAP = {
     "L00": "core/Layer 00: Sandy's Law.py",
@@ -33,89 +34,99 @@ LAYER_MAP = {
 if 'a7do' not in st.session_state:
     mods = {k: load_layer(k, v) for k, v in LAYER_MAP.items()}
     
-    layers = {
-        "L00": mods["L00"].SandysLawGovernor(),
-        "L01": mods["L01"].HumanChassis(),
-        "L02": mods["L02"].MuscularEngine(),
-        "L03": mods["L03"].MovementEngine(),
-        "L05": mods["L05"].MetabolicEngine(),
-        "L06": mods["L06"].OpticRegistry(),
-        "L07": mods["L07"].GrowthEngine(birth_scale=0.3),
-        "L10": mods["L10"].CognitiveArchive(neurotype="ADHD_AUTISM")
-    }
-    
+    # Store load status
+    st.session_state.boot_log = mods
+
+    layers = {}
+    for k in ["L00", "L01", "L02", "L03", "L05", "L06", "L07", "L10"]:
+        m = mods.get(k)
+        if m and not isinstance(m, str):
+            if k == "L00": layers[k] = m.SandysLawGovernor()
+            elif k == "L01": layers[k] = m.HumanChassis()
+            elif k == "L02": layers[k] = m.MuscularEngine()
+            elif k == "L03": layers[k] = m.MovementEngine()
+            elif k == "L05": layers[k] = m.MetabolicEngine()
+            elif k == "L06": layers[k] = m.OpticRegistry()
+            elif k == "L07": layers[k] = m.GrowthEngine(birth_scale=0.1)
+            elif k == "L10": layers[k] = m.CognitiveArchive(neurotype="ADHD_AUTISM")
+
+    # Initialize Master Frame
+    frame_mod = mods.get("FRAME")
+    master = None
+    if frame_mod and not isinstance(frame_mod, str):
+        try:
+            master = frame_mod.A7DO_Frame(layers)
+        except Exception as e:
+            st.session_state.boot_log["FRAME_ERR"] = str(e)
+
     st.session_state.a7do = {
-        "master": mods["FRAME"].A7DO_Frame(layers),
         "layers": layers,
+        "master": master,
         "boot_time": datetime.now()
     }
 
-# --- UI ---
+# --- UI STYLING ---
 st.set_page_config(page_title="A7DO Sentience OS", layout="wide")
 st.markdown("""<style>.stMetric { background-color: #161b22; border: 1px solid #30363d; padding: 15px; border-radius: 12px; }</style>""", unsafe_allow_html=True)
 
 # --- SIDEBAR & HEARTBEAT ---
 with st.sidebar:
     st.title("🛡️ A7DO v12.6")
-    page = st.radio("Navigation:", ["3D Growth Dashboard", "Physical Architecture", "Mindprint"])
-    st.divider()
+    page = st.radio("Navigation:", ["Growth Dashboard", "Diagnostics", "Mindprint"])
     
-    state = st.session_state.a7do["master"].execute_biological_heartbeat()
-    
-    st.metric("MATURITY", f"{state['growth']['maturity_percent']}%")
-    st.metric("COHERENCE", f"{state['governance']['coherence_index']:.4f}")
-    st.metric("ATP ENERGY", f"{state['vitals']['atp']}%")
+    if st.session_state.a7do["master"]:
+        state = st.session_state.a7do["master"].execute_biological_heartbeat()
+        st.metric("MATURITY", f"{state['growth']['maturity_percent']}%")
+        st.metric("COHERENCE", f"{state['governance']['coherence_index']:.4f}")
+        st.metric("ATP ENERGY", f"{state['vitals']['atp']}%")
+    else:
+        st.error("Master Frame Offline")
+        state = None
 
-# --- DASHBOARD: 3D GROWING MANIFOLD ---
-if page == "3D Growth Dashboard":
+# --- GROWTH DASHBOARD ---
+if page == "Growth Dashboard":
     st.title("🌱 Morphological Growth Timeline")
     
     col1, col2 = st.columns([1, 1])
     
     with col1:
         st.subheader("3D Synthetic Synthesis")
-        # Visualizing the Skeleton (Bones)
-        nodes = state["physics"]["bones"]
-        df = pd.DataFrame([{"id": k, "x": v["x"], "y": v["y"], "z": v["z"]} for k, v in nodes.items()])
-        
-        fig = go.Figure()
-        
-        # Add Bones (Nodes)
-        fig.add_trace(go.Scatter3d(
-            x=df['x'], y=df['z'], z=df['y'],
-            mode='markers', marker=dict(size=3, color='#58a6ff'),
-            text=df['id'], hoverinfo='text'
-        ))
-        
-        # Add Muscles (Vectors)
-        for m in state["physics"]["muscles"]:
+        if state:
+            bones = state["physics"]["bones"]
+            df = pd.DataFrame([{"id": k, "x": v[0], "y": v[2], "z": v[1]} for k, v in bones.items()])
+            
+            fig = go.Figure()
+            # Bone Nodes
             fig.add_trace(go.Scatter3d(
-                x=[m["p1"][0], m["p2"][0]],
-                y=[m["p1"][2], m["p2"][2]],
-                z=[m["p1"][1], m["p2"][1]],
-                mode='lines', line=dict(color='rgba(255, 100, 100, 0.3)', width=2),
-                hoverinfo='none'
+                x=df['x'], y=df['y'], z=df['z'],
+                mode='markers', marker=dict(size=3, color='#58a6ff'),
+                text=df['id'], hoverinfo='text'
             ))
-
-        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0), scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False), paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+            # Muscle Vectors
+            for m in state["physics"]["muscles"]:
+                fig.add_trace(go.Scatter3d(
+                    x=[m["p1"][0], m["p2"][0]],
+                    y=[m["p1"][2], m["p2"][2]],
+                    z=[m["p1"][1], m["p2"][1]],
+                    mode='lines', line=dict(color='rgba(255,100,100,0.2)', width=2),
+                    hoverinfo='none'
+                ))
+            
+            fig.update_layout(margin=dict(l=0, r=0, b=0, t=0), scene=dict(xaxis_visible=False, yaxis_visible=False, zaxis_visible=False), paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.subheader("Growth Telemetry")
-        st.write(f"**Current Scale (x):** `{state['growth']['scale_x']}`")
-        st.write(f"**Mass Load (x³):** `{state['growth']['mass_x3']}`")
-        st.write(f"**Structural Pressure:** `{state['growth']['g_load_pressure']}`")
-        
-        st.divider()
-        st.write("### Muscular Recruitment")
-        group = st.selectbox("Select Actuator Group:", list(st.session_state.a7do["layers"]["L02"].groups.keys()))
-        if st.button("Contract Muscle Group"):
-            st.session_state.a7do["layers"]["L02"].recruit_fibers(group, 0.8)
+        if state:
+            st.write(f"**Current Scale (x):** `{state['growth']['scale_x']}`")
+            st.write(f"**Strength (x²):** `{state['growth']['strength_x2']}`")
+            st.write(f"**Mass Load (x³):** `{state['growth']['mass_x3']}`")
+            st.progress(state['growth']['maturity_percent'] / 100)
 
-# --- OTHER PAGES ---
-elif page == "Physical Architecture":
-    st.title("🦴 206-Bone Individual Registry")
-    st.json(st.session_state.a7do["layers"]["L01"].bone_registry)
+elif page == "Diagnostics":
+    st.title("🛠️ System Boot Log")
+    for k, v in st.session_state.boot_log.items():
+        st.write(f"**{k}:** {v if isinstance(v, str) else '✅ Loaded'}")
 
 elif page == "Mindprint":
     st.title("🧠 Cognitive Neocortex (k=0.05)")
@@ -123,3 +134,4 @@ elif page == "Mindprint":
 
 time.sleep(1)
 st.rerun()
+
