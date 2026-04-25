@@ -1,39 +1,45 @@
 
 # A7DO Sentience OS - Layer 10: Cognitive Archive
-# Dynamic Memory Sprouting & Linguistic Anchoring
+# Associative Memory with Neurodivergent Resistance Mapping
 
+import json
+import os
 from datetime import datetime
 
 class CognitiveArchive:
-    def __init__(self):
-        self.nodes = []
-        self.bridges = []
-        self.active_context = "OBSERVATION_MODE"
+    def __init__(self, neurotype="ADHD_AUTISM"):
+        self.filepath = "mindprint.json"
+        # Shared trait resistance scalar (Lower = faster Mindpathing)
+        self.k = 0.05 if neurotype == "ADHD_AUTISM" else 0.15
+        self.nodes = self.load_archive()
 
-    def inject_node(self, token, node_class, traits, voltage, context):
-        node = {
+    def load_archive(self):
+        if os.path.exists(self.filepath):
+            with open(self.filepath, 'r') as f:
+                return json.load(f)
+        return {"nodes": [], "synaptic_bridges": []}
+
+    def calculate_resistance(self, intensity, shared_traits_count):
+        """ Resistance = k / (Intensity * Shared_Traits) """
+        if shared_traits_count == 0: return 10.0
+        return self.k / (intensity * shared_traits_count)
+
+    def sprout_node(self, token, node_class, traits, voltage, context):
+        new_node = {
             "token": token.upper(),
             "class": node_class.upper(),
-            "traits": [t.upper() for t in traits],
-            "intensity_voltage": float(voltage),
+            "traits": traits,
+            "intensity_voltage": voltage,
             "story_context": context,
-            "temporal_data": {"created_at": str(datetime.now())},
-            "synaptic_stability": 1.0
+            "created_at": str(datetime.now()),
+            "stability": 1.0
         }
-        self.nodes.append(node)
-        self.recalculate_bridges()
-        return f"NEURAL_STABILIZED: {token} anchored."
+        self.nodes["nodes"].append(new_node)
+        self.save_archive()
+        return f"COGNITIVE_ANCHOR: {token} Sprouts."
 
-    def recalculate_bridges(self):
-        self.bridges = []
-        for i in range(len(self.nodes)):
-            for j in range(i + 1, len(self.nodes)):
-                n1, n2 = self.nodes[i], self.nodes[j]
-                shared = set(n1["traits"]) & set(n2["traits"])
-                if shared:
-                    combined_v = (n1["intensity_voltage"] + n2["intensity_voltage"]) / 2
-                    resistance = 1.0 / (combined_v * len(shared))
-                    self.bridges.append({"source": n1["token"], "target": n2["token"], "resistance": round(resistance, 4)})
+    def save_archive(self):
+        with open(self.filepath, 'w') as f:
+            json.dump(self.nodes, f, indent=4)
 
-    def get_mind_map(self):
-        return {"total_nodes": len(self.nodes), "bridges": len(self.bridges)}
+
