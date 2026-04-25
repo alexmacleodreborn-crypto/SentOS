@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 
 # Internal System Links
-from governance.sandys_law import SystemGovernor
+from core.sandys_law import SystemGovernor
 from chassis.human_frame import HumanChassis
 from membrane.optic_registry import OpticRegistry
 from neocortex.cognitive_archive import CognitiveArchive
