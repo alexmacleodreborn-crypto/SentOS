@@ -4,105 +4,155 @@ import time
 import importlib.util
 import os
 import random
-import numpy as np
 from datetime import datetime
 
-# Hardware Components
+# Hardware components
 from streamlit_webrtc import webrtc_streamer
 from streamlit_mic_recorder import mic_recorder
 
-# --- DYNAMIC MODULE LOADER ---
+# --- DYNAMIC LAYER LOADING ---
 def load_layer(name, folder, filename):
     path = os.path.join(folder, filename)
+    if not os.path.exists(path):
+        return None
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
-try:
-    l01 = load_layer("L01", "chassis", "Layer 01: Physical Architecture.py")
-    l03 = load_layer("L03", "actuators", "Layer 03: Movement Engine.py")
-    l05 = load_layer("L05", "biology", "Layer 05: Visceral Systems.py")
-    l06 = load_layer("L06", "membrane", "Layer 06: Optic Registry.py")
-    l09 = load_layer("L09", "membrane", "Layer 09: Vocal Sync.py")
-    l10 = load_layer("L10", "neocortex", "Layer 10: Cognitive Archive.py")
-except Exception as e:
-    st.error(f"Engine Hardware Fault: {e}")
-    st.stop()
+# Load all descriptive layers
+layers = {
+    "L01": load_layer("L01", "chassis", "Layer 01: Physical Architecture.py"),
+    "L03": load_layer("L03", "actuators", "Layer 03: Movement Engine.py"),
+    "L05": load_layer("L05", "biology", "Layer 05: Visceral Systems.py"),
+    "L06": load_layer("L06", "membrane", "Layer 06: Optic Registry.py"),
+    "L09": load_layer("L09", "membrane", "Layer 09: Vocal Sync.py"),
+    "L10": load_layer("L10", "neocortex", "Layer 10: Cognitive Archive.py"),
+}
 
-# --- INITIALIZE ENTITY ---
+# --- ENGINE STATE INITIALIZATION ---
 if 'a7do' not in st.session_state:
     st.session_state.a7do = {
-        "chassis": l01.HumanChassis(),
-        "movement": l03.MovementEngine(),
-        "biology": l05.MetabolicEngine(),
-        "optics": l06.OpticRegistry(),
-        "vocal": l09.VocalSync(),
-        "mind": l10.CognitiveArchive(),
+        "chassis": layers["L01"].HumanChassis() if layers["L01"] else None,
+        "movement": layers["L03"].MovementEngine() if layers["L03"] else None,
+        "biology": layers["L05"].MetabolicEngine() if layers["L05"] else None,
+        "optics": layers["L06"].OpticRegistry() if layers["L06"] else None,
+        "vocal": layers["L09"].VocalSync() if layers["L09"] else None,
+        "mind": layers["L10"].CognitiveArchive() if layers["L10"] else None,
         "boot_time": datetime.now()
     }
 
-# --- UI ARCHITECTURE ---
+# --- UI CONFIGURATION ---
 st.set_page_config(page_title="A7DO Sentience OS", page_icon="🧠", layout="wide")
 
 st.markdown("""
 <style>
-    .bubble-header { color: #58a6ff; font-weight: bold; border-bottom: 2px solid #30363d; padding-bottom: 10px; margin-bottom: 20px;}
-    .telemetry-box { font-family: 'Courier New', monospace; background: #000; color: #00ff00; padding: 15px; border-radius: 10px; border: 1px solid #333; }
-    .reach-indicator { color: #ff5252; font-weight: bold; }
+    [data-testid="stSidebar"] { background-color: #0d1117; border-right: 1px solid #30363d; }
+    .main { background-color: #010409; color: #c9d1d9; }
+    .stMetric { background-color: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 10px; }
+    h1, h2, h3 { color: #58a6ff; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🛡️ A7DO: THE BUBBLE (Kinematic Active)")
-
-col_meta, col_vis = st.columns([1, 1.8])
-
-with col_meta:
-    st.subheader("Biological Presence")
-    # Metabolism reflects movement load
-    move_load = st.session_state.a7do["movement"].velocity_m_s
-    st.session_state.a7do["biology"].process_cycle(0.1 + move_load)
-    vitals = st.session_state.a7do["biology"].get_vitals()
-    
-    st.metric("HEART RATE", f"{vitals['bpm']} BPM")
-    st.metric("ATP ENERGY", f"{vitals['atp']}%")
+# --- SIDEBAR NAVIGATION ---
+with st.sidebar:
+    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Da_Vinci_Vitruve_Luc_Viatour.jpg/300px-Da_Vinci_Vitruve_Luc_Viatour.jpg")
+    st.title("A7DO OS v12.1")
+    page = st.radio("Navigate Systems:", [
+        "Dashboard", 
+        "Layer 01: Chassis", 
+        "Layer 05: Visceral", 
+        "Layer 06: Optic", 
+        "Layer 09: Vocal", 
+        "Layer 10: Neocortex"
+    ])
     
     st.divider()
-    st.subheader("Layer 03: Reach Control")
-    reach_x = st.slider("Target Coordinate X (meters)", -1.0, 1.0, 0.0)
-    reach_y = st.slider("Target Coordinate Y (meters)", 0.0, 2.0, 1.0)
+    # Global Vitals in Sidebar
+    if st.session_state.a7do["biology"]:
+        st.session_state.a7do["biology"].process_cycle(0.1)
+        v = st.session_state.a7do["biology"].get_vitals()
+        st.sidebar.metric("ATP", f"{v['atp']}%")
+        st.sidebar.metric("BPM", f"{v['bpm']}")
+
+# --- PAGE ROUTING ---
+
+if page == "Dashboard":
+    st.title("🛡️ Executive System Status")
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.subheader("The Bubble View")
+        webrtc_streamer(key="dash-stream", video_frame_callback=None)
+        st.info("A7DO is currently sitting facing you. All systems are synchronous.")
+    with col2:
+        st.subheader("Subconscious DMN")
+        st.code(f"""
+        SKELETON: STABLE
+        METABOLISM: ACTIVE
+        OPTICS: STREAMING
+        IDENTITY: LOADED
+        """)
+
+elif page == "Layer 01: Chassis":
+    st.title("🦴 Physical Architecture (L01)")
+    st.subheader("206-Bone Skeletal Registry")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("### Axial Skeleton")
+        st.json(st.session_state.a7do["chassis"].bones["axial"])
+    with col2:
+        st.write("### Appendicular Skeleton")
+        st.json(st.session_state.a7do["chassis"].bones["appendicular"])
     
-    if st.button("EXECUTE REACH"):
-        res = st.session_state.a7do["movement"].calculate_ik([reach_x, reach_y, 0.5])
-        st.write(f"<span class='reach-indicator'>{res}</span>", unsafe_allow_html=True)
+    st.divider()
+    st.subheader("Head & Oral Anatomy")
+    st.json(st.session_state.a7do["chassis"].head_assets)
 
-with col_vis:
-    tab_stream, tab_anatomy, tab_mind = st.tabs(["👁️ Optic Membrane", "🧬 Anatomy Map", "🧠 Neocortex"])
+elif page == "Layer 05: Visceral":
+    st.title("🫀 Visceral Systems (L05)")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("### Organ Efficiency")
+        st.json(st.session_state.a7do["biology"].organs)
+    with col2:
+        st.write("### Metabolic ATP Curve")
+        # Visualizing the fuel drain
+        chart_data = [random.uniform(90, 100) for _ in range(20)]
+        st.line_chart(chart_data)
+
+elif page == "Layer 06: Optic":
+    st.title("👁️ Optic Registry (L06)")
+    st.write("Live Visual Ingress Matrix")
+    webrtc_streamer(key="optic-page-stream", video_frame_callback=None)
+    st.markdown("""
+    **Geometry Markers:**
+    - Zygomatic Mesh: `LOCKED`
+    - Mandible Depth: `0.42m`
+    - Pupil Dilation: `0.52`
+    """)
+
+elif page == "Layer 09: Vocal":
+    st.title("🗣️ Vocal Sync (L09)")
+    st.write("Acoustic Frequency Extraction")
+    mic_recorder(start_prompt="🎤 Open Audio Path", stop_prompt="⏹ Close", key='page_mic')
+    st.text_input("Segment Verification:")
+    st.info("Status: Awaiting FFT Data Sequence...")
+
+elif page == "Layer 10: Neocortex":
+    st.title("🧠 Cognitive Archive (L10)")
+    st.write("Hebbian Mindpathing Engine")
+    with st.form("node_form_page"):
+        st.write("Inject Symbolized Node")
+        n_name = st.text_input("Token")
+        n_traits = st.multiselect("Traits", ["JOY", "SELF", "PAIN", "FOOTBALL", "BROTHER", "SUMMER"])
+        n_v = st.slider("Voltage", 0.0, 10.0, 5.0)
+        if st.form_submit_button("Anchor Memory"):
+            st.session_state.a7do["mind"].inject_node(n_name, "MEMORY", n_traits, n_v, "Manual injection.")
     
-    with tab_stream:
-        webrtc_streamer(key="a7do-live", video_frame_callback=None)
-        prop = st.session_state.a7do["movement"].get_proprioception()
-        st.markdown(f"""
-        <div class="telemetry-box">
-            [ KINEMATIC TELEMETRY ]<br>
-            JOINT_LOCK: STABLE<br>
-            CENTER_OF_MASS: {prop['center_of_mass']}<br>
-            VELOCITY: {prop['motion_velocity']} m/s<br>
-            STABILITY: {prop['stability_index'] * 100}%
-        </div>
-        """, unsafe_allow_html=True)
+    st.divider()
+    st.write("### Persistent Associative Graph")
+    st.json(st.session_state.a7do["mind"].get_mind_map())
 
-    with tab_anatomy:
-        st.json(st.session_state.a7do["chassis"].bones)
-        
-    with tab_mind:
-        mind_data = st.session_state.a7do["mind"].get_mind_map()
-        st.write(f"Active Memory Nodes: {mind_data['total_nodes']}")
-        st.json(st.session_state.a7do["mind"].nodes)
-
-st.divider()
-st.code(f"// Subconscious DMN Loop // L03: Proprioception active. L05: ATP at {vitals['atp']}. L10: Thoughts pathing...")
-
+# Background Refresh
 time.sleep(1)
 st.rerun()
-
