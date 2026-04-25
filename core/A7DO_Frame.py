@@ -1,132 +1,99 @@
 
-# A7DO Sentience OS - Master Entity Frame (Vitruvian 2.0 Edition)
-# Binds L01-L10 into a 3D Humanoid Shape
-# Logic: Proportional mapping based on C0-C5 Centers
+# A7DO Sentience OS - Master Entity Frame (3D Synthesis Edition)
+# Logic: Assembling 206 Bones and 640 Muscles into a Humanoid Silhouette.
 
 import time
 import numpy as np
 
 class A7DO_Frame:
     """
-    Coordinates the 206-bone skeleton and 640-muscle system.
-    Ensures 3D output follows a humanoid silhouette.
+    The Master Assembler. 
+    Places bones in a skeleton style, then overlays joints and muscles.
     """
-    def __init__(self, layers, scale_x=1.0):
+    def __init__(self, layers):
         self.layers = layers
-        self.scale_x = scale_x
+        self.growth = layers.get("L07") # Linking to the new Growth Engine
         
-        # VITRUVIAN 2.0 CENTERS (Relative heights based on H=1.0)
-        self.centers = {
-            "C3_HEAD": 0.90,     # Cognition Hub
-            "C2_HEART": 0.75,    # Vitality Center
-            "C0_NAVEL": 0.60,    # Geometry Center
-            "C1_GROIN": 0.50,    # Structural Center
-            "C4_HANDS": 0.65,    # Interaction Hub
-            "C5_FEET": 0.05      # Grounding
-        }
-        
-        self.render_buffer = {
-            "skeletal_nodes": {},
-            "actuator_vectors": {},
-            "centers": self.centers
+        # 3D Render Buffer
+        self.render_data = {
+            "bones": {},       # ID: {"pos": [x,y,z], "len": float}
+            "joints": [],      # Connections between bones
+            "muscles": []      # Pull-vectors between bone anchors
         }
 
-    def sync_3d_manifold(self):
+    def synthesize_3d_body(self):
         """
-        Translates Bone IDs into a Humanoid 3D Silhouette.
-        Maps every bone class to a specific spatial zone.
+        Builds the body from the ground up based on the current growth scale.
+        Order: Skeleton -> Joints -> Muscles
         """
-        if "L01" not in self.layers: return
+        scale = self.growth.current_scale if self.growth else 1.0
+        bone_registry = self.layers["L01"].bone_registry
         
-        bones = self.layers["L01"].bone_registry
-        self.render_buffer["skeletal_nodes"] = {}
-        
-        for bone_id, data in bones.items():
+        # 1. SKELETAL PLACEMENT (Vitruvian silhouette)
+        self.render_data["bones"] = {}
+        for bone_id, data in bone_registry.items():
             b_class = data.get("class", "GENERAL")
+            side = 1.0 if "_R" in bone_id else -1.0 if "_L" in bone_id else 0.0
             
-            # --- POSITIONAL LOGIC (Humanoid Mapping) ---
-            # X: Width (-0.5 to 0.5)
-            # Y: Height (0.0 to 1.0)
-            # Z: Depth (-0.1 to 0.1)
+            # Standard Vitruvian Y-Placement
+            y_pos = 0.5
+            if b_class == "SKULL": y_base = 0.9
+            elif b_class == "SPINE": y_base = 0.5 + np.random.uniform(0, 0.3)
+            elif b_class == "UPPER": y_base = 0.7
+            elif b_class == "LOWER": y_base = 0.3
+            else: y_base = 0.5
             
-            x, y, z = 0.0, 0.5, 0.0
-            
-            if b_class == "SKULL":
-                x = np.random.uniform(-0.05, 0.05)
-                y = self.centers["C3_HEAD"] + np.random.uniform(-0.05, 0.05)
-                z = np.random.uniform(-0.02, 0.05)
-                
-            elif b_class == "SPINE":
-                x = 0.0
-                # Distribute vertebrae down the central axis
-                y = np.random.uniform(self.centers["C1_GROIN"], self.centers["C3_HEAD"])
-                z = -0.02
-                
-            elif b_class == "THORAX":
-                # Rib cage spread around the heart
-                side = 1.0 if "_R" in bone_id else -1.0
-                x = side * np.random.uniform(0.05, 0.15)
-                y = self.centers["C2_HEART"] + np.random.uniform(-0.1, 0.1)
-                z = np.random.uniform(-0.05, 0.05)
-                
-            elif b_class == "UPPER":
-                # Arms spreading out to C4
-                side = 1.0 if "_R" in bone_id else -1.0
-                x = side * np.random.uniform(0.1, 0.4)
-                y = np.random.uniform(self.centers["C4_HANDS"] - 0.1, self.centers["C3_HEAD"] - 0.1)
-                z = np.random.uniform(-0.05, 0.05)
-                
-            elif b_class == "LOWER":
-                # Legs spreading down to C5
-                side = 1.0 if "_R" in bone_id else -1.0
-                x = side * np.random.uniform(0.05, 0.15)
-                y = np.random.uniform(self.centers["C5_FEET"], self.centers["C1_GROIN"])
-                z = np.random.uniform(-0.02, 0.02)
-                
-            elif b_class == "SENSORY":
-                # Tiny nodes inside the head
-                x = np.random.uniform(-0.02, 0.02)
-                y = self.centers["C3_HEAD"]
-                z = 0.0
+            # Calculate 3D coordinates scaled by growth
+            self.render_data["bones"][bone_id] = {
+                "x": side * np.random.uniform(0.1, 0.3) * scale,
+                "y": y_base * scale,
+                "z": np.random.uniform(-0.05, 0.05) * scale
+            }
 
-            # Apply final scaling and store in buffer
-            self.render_buffer["skeletal_nodes"][bone_id] = [
-                x * self.scale_x, 
-                y * self.scale_x, 
-                z * self.scale_x
-            ]
+        # 2. MUSCULAR OVERLAY
+        # Creating pull-vectors between bone anchors
+        self.render_data["muscles"] = []
+        muscle_groups = self.layers["L02"].groups
+        for m_group, m_data in muscle_groups.items():
+            anchors = m_data.get("anchors", [])
+            if len(anchors) >= 2:
+                # Find the 3D position of the start and end bones
+                p1 = self.render_data["bones"].get(anchors[0])
+                p2 = self.render_data["bones"].get(anchors[-1])
+                
+                if p1 and p2:
+                    self.render_data["muscles"].append({
+                        "id": m_group,
+                        "p1": [p1["x"], p1["y"], p1["z"]],
+                        "p2": [p2["x"], p2["y"], p2["z"]],
+                        "tension": self.layers["L02"].activation_states[m_data["muscles"][0]]["tension"]
+                    })
 
     def execute_biological_heartbeat(self):
-        """Processes one frame of the A7DO life-cycle."""
-        # 1. Perception
-        if "L06" in self.layers and "L10" in self.layers:
-            nodes = self.layers["L10"].archive["neocortex_array"]["nodes"]
-            self.layers["L06"].scan_environment(nodes)
-        
-        # 2. Physics & Cognition (k=0.05 ADHD/Autism profile)
-        if "L00" in self.layers and "L10" in self.layers:
-            r = self.layers["L10"].get_resistance_matrix()
-            self.layers["L00"].calculate_coherence(r, 0.01)
-        
-        # 3. Visceral
-        if "L05" in self.layers:
-            self.layers["L05"].process_cycle(cognitive_load=0.1)
+        """Standard System Pulse"""
+        # A. Process Growth
+        if self.growth:
+            self.growth.trigger_growth_tick()
             
-        # 4. Synchronize the 3D Layout
-        self.sync_3d_manifold()
+        # B. Cognitive Processing (ADHD/Autism k=0.05)
+        r = self.layers["L10"].get_resistance_matrix()
+        self.layers["L00"].calculate_coherence(r, 0.01)
         
-        return self.get_unified_state()
+        # C. Visceral Demand (Square-Cube Penalty)
+        # Moving a larger mass costs more ATP
+        muscle_load = self.layers["L02"].calculate_metabolic_drain()
+        self.layers["L05"].process_cycle(cognitive_load=0.1, muscle_strain=muscle_load)
+        
+        # D. Visual Synthesis
+        self.synthesize_3d_body()
+        
+        return self.get_state()
 
-    def reach_and_symbolize(self, label, traits):
-        if "L10" in self.layers:
-            self.layers["L10"].sprout_node(label, "ENVIRONMENT", traits, 5.0, "Vitruvian Interaction")
-        return f"FRAME: Symbol {label} anchored at C4."
-
-    def get_unified_state(self):
+    def get_state(self):
         return {
-            "vitals": self.layers["L05"].get_vitals() if "L05" in self.layers else {},
-            "physics": self.render_buffer,
-            "governance": self.layers["L00"].get_telemetry() if "L00" in self.layers else {},
-            "optics": self.layers["L06"].get_sensory_telemetry() if "L06" in self.layers else {},
-            "kinematics": self.layers["L03"].get_kinematic_telemetry() if "L03" in self.layers else {}
+            "vitals": self.layers["L05"].get_vitals(),
+            "growth": self.growth.get_growth_telemetry() if self.growth else {},
+            "physics": self.render_data,
+            "governance": self.layers["L00"].get_telemetry()
         }
+
