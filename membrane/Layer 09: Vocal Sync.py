@@ -1,9 +1,8 @@
 
-# A7DO Sentience OS - Layer 09: Vocal Sync (Active Stream Edition)
-# Live FFT Processing & Acoustic Calibration
+# A7DO Sentience OS - Layer 09: Vocal Sync
+# Active Frequency Extraction & Resonance Calibration
 
 import random
-import time
 import numpy as np
 
 class VocalSync:
@@ -11,47 +10,39 @@ class VocalSync:
         self.calibration_sequence = ["INITIATE", "RESONANCE", "FREQUENCY", "SYNCHRONISE", "TWIN"]
         self.current_step = 0
         self.is_calibrated = False
-        self.vocal_profile = {
-            "locked_frequency": 0.0,
-            "timbre_stability": 0.0,
-            "harmonics": []
-        }
-        self.sample_rate = 44100
-        self.fft_size = 8192
+        self.locked_freq = 0.0
+        self.harmonic_profile = []
 
-    def process_audio_stream(self, raw_audio_data):
+    def process_live_audio(self, audio_buffer):
         """
-        Processes live byte-stream audio for frequency extraction.
-        Simulates the FFT analysis of the user's voice.
+        Receives raw audio data and performs a simulated FFT
+        to lock onto the user's biological pitch.
         """
-        if raw_audio_data:
-            # Perform FFT (Simulated) to find peak frequency
-            peak_freq = round(random.uniform(100, 220), 2)
-            return peak_freq
+        if audio_buffer is not None:
+            # In a full implementation, we use np.fft.fft(audio_buffer)
+            # Here we simulate the extraction of a stable Hz value
+            extracted_hz = round(random.uniform(110, 155), 2)
+            return extracted_hz
         return 0.0
 
-    def validate_calibration_word(self, recognized_text):
-        """
-        Validates the phoneme sequence segment.
-        """
-        if self.is_calibrated:
-            return "SYNC_ALREADY_LOCKED"
-            
+    def validate_segment(self, detected_text):
+        if self.is_calibrated: return "SYNC_LOCKED"
+        
         target = self.calibration_sequence[self.current_step]
-        if recognized_text.upper() == target:
+        if detected_text.upper().strip() == target:
             self.current_step += 1
             if self.current_step >= len(self.calibration_sequence):
                 self.is_calibrated = True
-                self.vocal_profile["locked_frequency"] = round(random.uniform(110, 160), 2)
+                self.locked_freq = round(random.uniform(120, 140), 2)
                 return "SYNC_COMPLETE"
-            return "WORD_ACCEPTED"
-        return "WORD_MISMATCH"
+            return "SEGMENT_ACCEPTED"
+        return "RESONANCE_MISMATCH"
 
-    def get_status(self):
+    def get_vocal_telemetry(self):
         return {
             "step": self.current_step,
             "target": self.calibration_sequence[self.current_step] if self.current_step < 5 else "LOCKED",
-            "calibrated": self.is_calibrated,
-            "freq": self.vocal_profile["locked_frequency"]
+            "status": "CALIBRATED" if self.is_calibrated else "WAITING",
+            "hz": self.locked_freq
         }
 
