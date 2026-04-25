@@ -1,99 +1,90 @@
 
-# A7DO Sentience OS - Master Entity Frame (3D Synthesis Edition)
-# Logic: Assembling 206 Bones and 640 Muscles into a Humanoid Silhouette.
+# A7DO Sentience OS - Master Entity Frame (Synthesis Edition)
+# Binds L01-L10 into a growing 3D Humanoid Body.
 
 import time
 import numpy as np
 
 class A7DO_Frame:
     """
-    The Master Assembler. 
-    Places bones in a skeleton style, then overlays joints and muscles.
+    The High-Resolution Assembler. 
+    Places bones, links joints, and overlays muscles in 3D space.
     """
     def __init__(self, layers):
         self.layers = layers
-        self.growth = layers.get("L07") # Linking to the new Growth Engine
+        self.growth = layers.get("L07")
         
-        # 3D Render Buffer
-        self.render_data = {
-            "bones": {},       # ID: {"pos": [x,y,z], "len": float}
-            "joints": [],      # Connections between bones
-            "muscles": []      # Pull-vectors between bone anchors
+        # 3D Assembly Data
+        self.body_mesh = {
+            "bones": {},       # 3D points for the 206 bones
+            "muscles": []      # Vectors for the 640 actuators
         }
 
-    def synthesize_3d_body(self):
+    def assemble_body_3d(self):
         """
-        Builds the body from the ground up based on the current growth scale.
-        Order: Skeleton -> Joints -> Muscles
+        Orders the synthesis: 
+        1. Scaling (Growth) -> 2. Skeletal Placement -> 3. Muscular Overlay
         """
         scale = self.growth.current_scale if self.growth else 1.0
-        bone_registry = self.layers["L01"].bone_registry
+        bone_reg = self.layers["L01"].bone_registry
         
-        # 1. SKELETAL PLACEMENT (Vitruvian silhouette)
-        self.render_data["bones"] = {}
-        for bone_id, data in bone_registry.items():
+        # --- 1. SKELETAL PLACEMENT ---
+        self.body_mesh["bones"] = {}
+        for b_id, data in bone_reg.items():
             b_class = data.get("class", "GENERAL")
-            side = 1.0 if "_R" in bone_id else -1.0 if "_L" in bone_id else 0.0
+            side = 1.0 if "_R" in b_id else -1.0 if "_L" in b_id else 0.0
             
-            # Standard Vitruvian Y-Placement
-            y_pos = 0.5
+            # Map vertical position based on class
+            y_base = 0.5
             if b_class == "SKULL": y_base = 0.9
-            elif b_class == "SPINE": y_base = 0.5 + np.random.uniform(0, 0.3)
+            elif b_class == "SPINE": y_base = 0.6
             elif b_class == "UPPER": y_base = 0.7
             elif b_class == "LOWER": y_base = 0.3
-            else: y_base = 0.5
-            
-            # Calculate 3D coordinates scaled by growth
-            self.render_data["bones"][bone_id] = {
-                "x": side * np.random.uniform(0.1, 0.3) * scale,
-                "y": y_base * scale,
-                "z": np.random.uniform(-0.05, 0.05) * scale
-            }
+            elif b_class == "FEET": y_base = 0.05
 
-        # 2. MUSCULAR OVERLAY
-        # Creating pull-vectors between bone anchors
-        self.render_data["muscles"] = []
+            self.body_mesh["bones"][b_id] = [
+                side * np.random.uniform(0.05, 0.2) * scale, # Width (x)
+                y_base * scale,                               # Height (y)
+                np.random.uniform(-0.05, 0.05) * scale        # Depth (z)
+            ]
+
+        # --- 2. MUSCULAR OVERLAY ---
+        self.body_mesh["muscles"] = []
         muscle_groups = self.layers["L02"].groups
         for m_group, m_data in muscle_groups.items():
             anchors = m_data.get("anchors", [])
             if len(anchors) >= 2:
-                # Find the 3D position of the start and end bones
-                p1 = self.render_data["bones"].get(anchors[0])
-                p2 = self.render_data["bones"].get(anchors[-1])
-                
+                p1 = self.body_mesh["bones"].get(anchors[0])
+                p2 = self.body_mesh["bones"].get(anchors[-1])
                 if p1 and p2:
-                    self.render_data["muscles"].append({
-                        "id": m_group,
-                        "p1": [p1["x"], p1["y"], p1["z"]],
-                        "p2": [p2["x"], p2["y"], p2["z"]],
-                        "tension": self.layers["L02"].activation_states[m_data["muscles"][0]]["tension"]
+                    self.body_mesh["muscles"].append({
+                        "p1": p1, "p2": p2, "group": m_group
                     })
 
     def execute_biological_heartbeat(self):
-        """Standard System Pulse"""
-        # A. Process Growth
-        if self.growth:
-            self.growth.trigger_growth_tick()
-            
-        # B. Cognitive Processing (ADHD/Autism k=0.05)
-        r = self.layers["L10"].get_resistance_matrix()
-        self.layers["L00"].calculate_coherence(r, 0.01)
+        """Processes one growth/cognitive cycle."""
+        # A. Growth Tick
+        if self.growth: self.growth.update_growth()
         
-        # C. Visceral Demand (Square-Cube Penalty)
-        # Moving a larger mass costs more ATP
-        muscle_load = self.layers["L02"].calculate_metabolic_drain()
-        self.layers["L05"].process_cycle(cognitive_load=0.1, muscle_strain=muscle_load)
+        # B. Cognitive Flow (ADHD/Autism k=0.05)
+        res_r = self.layers["L10"].get_resistance_matrix()
+        self.layers["L00"].calculate_coherence(res_r, 0.01)
         
-        # D. Visual Synthesis
-        self.synthesize_3d_body()
+        # C. Metabolic Demand (Square-Cube Law)
+        # Note: Mass (x^3) makes moving the larger frame more expensive
+        mass_penalty = self.growth.mass_volume if self.growth else 1.0
+        self.layers["L05"].process_cycle(cognitive_load=0.2, muscle_strain=mass_penalty)
         
-        return self.get_state()
+        # D. Physical Assembly
+        self.assemble_body_3d()
+        
+        return self.get_unified_state()
 
-    def get_state(self):
+    def get_unified_state(self):
         return {
             "vitals": self.layers["L05"].get_vitals(),
-            "growth": self.growth.get_growth_telemetry() if self.growth else {},
-            "physics": self.render_data,
+            "growth": self.growth.get_telemetry() if self.growth else {},
+            "physics": self.body_mesh,
             "governance": self.layers["L00"].get_telemetry()
         }
 
