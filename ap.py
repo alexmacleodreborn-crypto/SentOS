@@ -14,9 +14,18 @@ phases, anatomy, tick_loop, organs = load_data()
 
 st.title("A7DO Developmental Engine")
 
-# Simulation tick slider
-tick_ids = tick_loop['Tick ID'].values
-current_tick = st.slider("Simulation Tick", min_value=int(tick_ids[0]), max_value=int(tick_ids[-1]), step=500, value=int(tick_ids[0]))
+# --- Clean tick IDs for slider ---
+tick_ids = pd.to_numeric(tick_loop['Tick ID'], errors='coerce')
+tick_ids = tick_ids.dropna().astype(int)
+tick_ids = tick_ids.sort_values().unique()
+
+current_tick = st.slider(
+    "Simulation Tick",
+    min_value=int(tick_ids.min()),
+    max_value=int(tick_ids.max()),
+    step=500,
+    value=int(tick_ids.min())
+)
 
 # Find current phase
 current_phase_row = tick_loop[tick_loop['Tick ID'] <= current_tick].iloc[-1]
@@ -33,8 +42,12 @@ st.dataframe(anatomy_now[['Name', 'Category', 'DNA Code', 'Start Week', 'End Wee
 
 # Organ activation table
 st.subheader("Organ & System Activation")
-organs_now = organs[organs['an'] <= current_week]
-st.dataframe(organs_now[['Organ/System', 'Activation Event', 'DNA Code', 'Notes']])
+if 'an' in organs.columns:
+    organs['an'] = pd.to_numeric(organs['an'], errors='coerce')
+    organs_now = organs[organs['an'] <= current_week]
+    st.dataframe(organs_now[['Organ/System', 'Activation Event', 'DNA Code', 'Notes']])
+else:
+    st.info("No 'an' column in Organ & System Activation sheet.")
 
 # Developmental timeline
 st.subheader("Prenatal Phases Timeline")
@@ -42,7 +55,8 @@ st.dataframe(phases)
 
 # Advance simulation
 if st.button("Advance Tick"):
-    next_tick = min(current_tick + 500, int(tick_ids[-1]))
+    next_tick = min(current_tick + 500, int(tick_ids.max()))
+    st.session_state['current_tick'] = next_tick
     st.experimental_rerun()
 
 st.caption("This starter app loads your workbook, advances ticks, and displays developmental data. Expand with more sheets and features as needed!")
